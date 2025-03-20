@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'E-Commerce Microservices'
+    folder: 'E-Commerce'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

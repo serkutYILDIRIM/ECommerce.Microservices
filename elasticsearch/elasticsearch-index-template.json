@@ -1,0 +1,95 @@
+{
+  "index_patterns": ["logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.refresh_interval": "5s",
+      "index.lifecycle.name": "logs-policy",
+      "index.lifecycle.rollover_alias": "logs",
+      "index.mapping.total_fields.limit": 1000
+    },
+    "mappings": {
+      "dynamic_templates": [
+        {
+          "strings_as_keywords": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "fields": {
+                "text": {
+                  "type": "text"
+                }
+              },
+              "ignore_above": 256
+            }
+          }
+        }
+      ],
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text"
+        },
+        "service.name": {
+          "type": "keyword"
+        },
+        "service.version": {
+          "type": "keyword"
+        },
+        "service.environment": {
+          "type": "keyword"
+        },
+        "TraceId": {
+          "type": "keyword"
+        },
+        "SpanId": {
+          "type": "keyword"
+        },
+        "ParentSpanId": {
+          "type": "keyword"
+        },
+        "RequestPath": {
+          "type": "keyword"
+        },
+        "RequestMethod": {
+          "type": "keyword"
+        },
+        "StatusCode": {
+          "type": "integer"
+        },
+        "CorrelationId": {
+          "type": "keyword"
+        },
+        "Category": {
+          "type": "keyword"
+        },
+        "properties": {
+          "type": "object",
+          "dynamic": true
+        },
+        "error": {
+          "properties": {
+            "message": {
+              "type": "text"
+            },
+            "type": {
+              "type": "keyword"
+            },
+            "stack_trace": {
+              "type": "text"
+            },
+            "inner": {
+              "type": "text"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,160 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "otel-collector"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["localhost:8888"]
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1000
+
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 4000
+    spike_limit_mib: 800
+
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+
+  filter:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          - .*product.*
+          - .*order.*
+          - .*inventory.*
+          - .*performance.*
+          - http\..*
+          - runtime\..*
+          - process\..*
+          - system\..*
+          - db\..*
+
+  transform:
+    metric_statements:
+      - context: metric
+        statements:
+          - set(description, concat("Transformed metric ", name))
+    log_statements:
+      - context: log
+        statements:
+          - set(body.trace_id, TraceId()) where IsMatch(body.TraceId, "")
+          - set(body.span_id, SpanId()) where IsMatch(body.SpanId, "")
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["span.kind"], "server") where attributes["span.kind"] == nil
+          - keep_keys(attributes, ["service.name", "service.version", "service.instance.id", "http.method", "http.url", "http.status_code", "trace.id", "span.id", "error", "exception.message", "exception.type", "exception.stacktrace"])
+
+  metricstransform:
+    transforms:
+      - include: performance.http.request.duration
+        action: update
+        operations:
+          - action: aggregate_labels
+            aggregation_type: sum
+            label_set: ["http.method", "http.path"]
+      
+      - include: performance.db.operation.duration
+        action: update
+        operations:
+          - action: aggregate_labels
+            aggregation_type: sum
+            label_set: ["db.operation_type", "db.entity_type"]
+      
+      - include: performance.system.cpu_utilization
+        action: update
+        operations:
+          - action: aggregate_labels
+            aggregation_type: sum
+            label_set: ["process.name"]
+      
+      - include: performance.system.memory_usage
+        action: update
+        operations:
+          - action: aggregate_labels
+            aggregation_type: sum
+            label_set: ["process.name"]
+
+  resource:
+    attributes:
+      - key: service.telemetry.version
+        value: v1
+        action: upsert
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otelcol
+    send_timestamps: true
+    metric_expiration: 60s
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  zipkin:
+    endpoint: "http://zipkin:9411/api/v2/spans"
+    format: proto
+
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  logging:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  debug:
+    verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  
+  pprof:
+    endpoint: 0.0.0.0:1888
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, transform]
+      exporters: [otlp, jaeger, zipkin, logging]
+    
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus, logging]
+    
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch, transform]
+      exporters: [debug]
+
+  telemetry:
+    logs:
+      level: "info"

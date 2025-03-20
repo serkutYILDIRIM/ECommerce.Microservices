@@ -1,0 +1,83 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Rule files to load
+rule_files:
+  # - "prometheus-rules.yml"
+
+# Alertmanager configuration
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+scrape_configs:
+  # Scrape OpenTelemetry Collector metrics
+  - job_name: 'otel-collector'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['otel-collector:8889']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '.*'
+        action: keep
+
+  # Scrape OpenTelemetry Collector internal metrics
+  - job_name: 'otel-collector-internal'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['otel-collector:8888']
+  
+  # Scrape Product Catalog Service metrics
+  - job_name: 'product-catalog-service'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['product-catalog-service:80']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'business.*|product.*|performance.*'
+        action: keep
+  
+  # Scrape Order Processing Service metrics
+  - job_name: 'order-processing-service'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['order-processing-service:80']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'business.*|order.*|performance.*'
+        action: keep
+  
+  # Scrape Inventory Management Service metrics
+  - job_name: 'inventory-management-service'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['inventory-management-service:80']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'business.*|inventory.*|performance.*'
+        action: keep
+
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape Node Exporter metrics (if available)
+  # - job_name: 'node-exporter'
+  #   scrape_interval: 10s
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+
+  # Scrape cAdvisor metrics (if available)
+  # - job_name: 'cadvisor'
+  #   scrape_interval: 10s
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
