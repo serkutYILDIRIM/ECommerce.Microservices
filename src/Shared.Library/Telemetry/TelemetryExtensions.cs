@@ -100,6 +100,9 @@ public static class TelemetryExtensions
                 // Add custom processors based on the tracer type
                 ConfigureCustomProcessors(builder, services, serviceName, serviceVersion, environment, tracerType);
                 
+                // Add exception tracking enhancements
+                builder.AddExceptionTracking();
+                
                 // Add exporters from configuration
                 ConfigureExporters(builder, services);
             });
@@ -161,6 +164,15 @@ public static class TelemetryExtensions
         return connectionString;
     }
     
+    // Add exception tracking enhancements to the TracerProviderBuilder
+    private static TracerProviderBuilder AddExceptionTracking(this TracerProviderBuilder builder)
+    {
+        // Configure OpenTelemetry to automatically capture exceptions as span events
+        builder.AddProcessor(new ExceptionTrackingProcessor());
+        
+        return builder;
+    }
+    
     // ...existing code for ConfigureExporters...
 }
 
@@ -171,4 +183,36 @@ public enum TracerProviderType
 {
     AspNet,
     Worker
+}
+
+/// <summary>
+/// Processor that ensures exceptions are properly tracked
+/// </summary>
+internal class ExceptionTrackingProcessor : BaseProcessor<Activity>
+{
+    public override void OnEnd(Activity activity)
+    {
+        // If the activity has error status but no exception event, add a generic error event
+        if (activity.Status == ActivityStatusCode.Error && 
+            !activity.Events.Any(e => e.Name == "exception"))
+        {
+            // Get the error message from tags if available
+            string errorMessage = string.Empty;
+            if (activity.Tags.FirstOrDefault(t => t.Key == "error.message").Value is string message)
+            {
+                errorMessage = message;
+            }
+            
+            // Add a generic exception event
+            activity.AddEvent(new ActivityEvent("error", 
+                tags: new ActivityTagsCollection 
+                {
+                    { "error.type", activity.Tags.FirstOrDefault(t => t.Key == "error.type").Value ?? "unknown" },
+                    { "error.message", errorMessage }
+                }
+            ));
+        }
+        
+        base.OnEnd(activity);
+    }
 }

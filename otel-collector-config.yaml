@@ -16,13 +16,13 @@ receivers:
 
 processors:
   batch:
-    timeout: 10s
-    send_batch_size: 1000
+    timeout: 1s
+    send_batch_size: 1024
 
   memory_limiter:
-    check_interval: 5s
-    limit_mib: 4000
-    spike_limit_mib: 800
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
 
   resourcedetection:
     detectors: [env, system]
@@ -98,7 +98,7 @@ processors:
 exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
-    namespace: otelcol
+    namespace: otel
     send_timestamps: true
     metric_expiration: 60s
     enable_open_metrics: true
@@ -115,9 +115,19 @@ exporters:
     format: proto
 
   otlp:
-    endpoint: jaeger:4317
+    endpoint: tempo:4317
     tls:
       insecure: true
+
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    format: body
+    labels:
+      resource:
+        service.name: "service_name"
+        service.instance.id: "service_instance_id"
+      attributes:
+        level: "severity"
 
   logging:
     verbosity: detailed
@@ -142,19 +152,19 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch, resource, transform]
+      processors: [memory_limiter, batch, resourcedetection, resource, transform]
       exporters: [otlp, jaeger, zipkin, logging]
     
     metrics:
       receivers: [otlp, prometheus]
-      processors: [memory_limiter, resource, batch]
+      processors: [memory_limiter, batch, resourcedetection, resource]
       exporters: [prometheus, logging]
     
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, resource, batch, transform]
-      exporters: [debug]
+      processors: [memory_limiter, batch, resourcedetection, resource, transform]
+      exporters: [loki, logging, debug]
 
   telemetry:
     logs:
-      level: "info"
+      level: "debug"

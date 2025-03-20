@@ -74,6 +74,9 @@ builder.Services.AddServiceTelemetry(
 // Add services required for async context propagation
 builder.Services.AddAsyncContextPropagation();
 
+// Add services required for error handling
+builder.Services.AddErrorHandling();
+
 // Add health checks
 builder.Services.AddHealthChecks();
 
@@ -128,6 +131,10 @@ app.UseTracing(TelemetryConfig.ServiceName);
 
 // Add log enrichment middleware
 app.UseLogEnrichment(TelemetryConfig.ServiceName);
+
+// Configure middleware pipeline
+// Exception handling should be early in the pipeline
+app.UseErrorHandling();
 
 // Configure middleware
 app.UseActivityContextPropagation();

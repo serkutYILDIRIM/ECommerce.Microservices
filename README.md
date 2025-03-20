@@ -107,3 +107,20 @@ curl "http://localhost:8003/trace-test/chain?targetUrl=http://product-catalog-se
 # Test trace from Order Service to Inventory Service
 curl "http://localhost:8003/trace-test/chain?targetUrl=http://inventory-management-service/trace-test"
 ```
+
+## Accessing Grafana
+
+Grafana provides a powerful platform for visualizing metrics, logs, and traces.
+
+### Accessing Grafana UI
+
+1. Open your browser and navigate to http://localhost:3000
+2. Log in with the default credentials (admin/admin123)
+
+### Grafana Dashboards
+
+The following dashboards are available in Grafana:
+
+1. **Microservices Overview** - General performance metrics
+2. **Distributed Tracing** - Trace visualization and analysis
+3. **Error Tracking** - Error monitoring and analysis

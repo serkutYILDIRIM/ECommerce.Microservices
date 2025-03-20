@@ -83,6 +83,9 @@ builder.Services.AddServiceTelemetry(
 // Add services required for async context propagation
 builder.Services.AddAsyncContextPropagation();
 
+// Add services required for error handling
+builder.Services.AddErrorHandling();
+
 // Add health checks
 builder.Services.AddHealthChecks();
 
@@ -114,6 +117,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Configure middleware pipeline
+// Exception handling should be early in the pipeline
+app.UseErrorHandling();
 
 // Add performance monitoring middleware
 app.UsePerformanceMonitoring();

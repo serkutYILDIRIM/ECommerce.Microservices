@@ -217,21 +217,28 @@ services:
 
   # Grafana for dashboards
   grafana:
-    image: grafana/grafana:11.1.0
+    image: grafana/grafana:latest
     container_name: grafana
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_BASIC_ENABLED=false
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=localhost
+      - GF_SMTP_ENABLED=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,natel-discrete-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=false
     volumes:
+      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
-    depends_on:
-      - prometheus
     networks:
       - ecommerce-network
+    depends_on:
+      - prometheus
+      - otel-collector
 
   # Seq for log storage and analysis
   seq:
@@ -269,20 +276,6 @@ services:
 networks:
   ecommerce-network:arch-data:/usr/share/elasticsearch/data
     driver: bridge    ports:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     driver: local  inventory-logs:    driver: local  order-logs:    driver: local  product-logs:    driver: local  seq-data:    driver: local  prometheus-data:    driver: local  jaeger-data:volumes:      - "9200:9200"
       - "9300:9300"
@@ -333,4 +326,6 @@ volumes:
   inventory-logs:
     driver: local
   elasticsearch-data:
+    driver: local
+  grafana-data:
     driver: local
