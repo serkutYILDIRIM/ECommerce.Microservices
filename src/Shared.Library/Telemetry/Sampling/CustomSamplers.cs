@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using OpenTelemetry.Trace;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Shared.Library.Telemetry.Sampling;
 

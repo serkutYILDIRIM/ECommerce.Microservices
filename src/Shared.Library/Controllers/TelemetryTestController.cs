@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using Shared.Library.Telemetry.Exporters;
 using System.Diagnostics;
 

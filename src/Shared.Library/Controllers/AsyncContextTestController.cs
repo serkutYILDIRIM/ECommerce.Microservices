@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Shared.Library.Telemetry.Contexts;
 using System.Diagnostics;
 

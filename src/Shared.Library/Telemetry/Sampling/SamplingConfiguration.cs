@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
 using System.Diagnostics;
 

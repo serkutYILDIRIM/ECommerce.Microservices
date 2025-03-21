@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Telemetry.Baggage;
 using System.Diagnostics;
@@ -200,5 +202,3 @@ public static class ExceptionHandlingMiddlewareExtensions
         return builder.UseMiddleware<ExceptionHandlingMiddleware>();
     }
 }
-```
-</file>

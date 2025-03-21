@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 
 namespace Shared.Library.Clients.Implementation;
