@@ -33,11 +33,16 @@ public class SamplingConfiguration
     /// Whether to add composite sampling (combining different strategies)
     /// </summary>
     public bool UseCompositeSampling { get; set; } = false;
-    
+
     /// <summary>
     /// Creates a default configuration with reasonable defaults
     /// </summary>
     /// <returns>Default sampling configuration</returns>
+    public double BaseRate { get; set; } = 0.1;
+    public double ErrorSamplingRate { get; set; } = 1.0;
+    public double LatencyThresholdMs { get; set; } = 500;
+    public double HighValueSamplingRate { get; set; } = 0.5;
+}
     public static SamplingConfiguration CreateDefault()
     {
         return new SamplingConfiguration

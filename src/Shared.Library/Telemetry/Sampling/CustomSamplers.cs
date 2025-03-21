@@ -33,10 +33,10 @@ public static class CustomSamplers
         // Register the custom composite sampler
         builder.SetSampler(new CompositeCustomSampler(
             serviceName,
-            samplingConfig.BaseRate,
-            samplingConfig.ErrorSamplingRate,
-            samplingConfig.LatencyThresholdMs,
-            samplingConfig.HighValueSamplingRate));
+            samplingConfig.DefaultSamplingRate,
+            samplingConfig.ErrorBasedSamplingRate,
+            samplingConfig.SlowTransactionThresholdMs,
+            samplingConfig.BusinessValueSamplingRate));
         
         return builder;
     }
@@ -73,7 +73,7 @@ public class ParentBasedRatioSampler : Sampler
     {
         var parentContext = samplingParameters.ParentContext;
         
-        if (!parentContext.IsValid)
+        if (parentContext.TraceId == default)
         {
             // This is a root span, use the configured probability
             return _rootSampler.ShouldSample(samplingParameters);
@@ -82,13 +82,13 @@ public class ParentBasedRatioSampler : Sampler
         // If parent is remote (from another service)
         if (parentContext.IsRemote)
         {
-            return parentContext.IsSampled
+            return parentContext.TraceFlags.HasFlag(ActivityTraceFlags.Recorded)
                 ? _remoteParentSampled.ShouldSample(samplingParameters)
                 : _remoteParentNotSampled.ShouldSample(samplingParameters);
         }
         
         // If parent is local (same service)
-        return parentContext.IsSampled
+        return parentContext.TraceFlags.HasFlag(ActivityTraceFlags.Recorded)
             ? _localParentSampled.ShouldSample(samplingParameters)
             : _localParentNotSampled.ShouldSample(samplingParameters);
     }
@@ -96,7 +96,7 @@ public class ParentBasedRatioSampler : Sampler
     /// <summary>
     /// Description of this sampler
     /// </summary>
-    public override string Description => $"ParentBasedRatioSampler({_rootSampler.Description})";
+    public new string Description => $"ParentBasedRatioSampler({_rootSampler.Description})";
 }
 
 /// <summary>
@@ -160,7 +160,7 @@ public class RateLimitingSampler : Sampler
     /// <summary>
     /// Description of this sampler
     /// </summary>
-    public override string Description => $"RateLimitingSampler({_maxTracesPerSecond}/s)";
+    public new string Description => $"RateLimitingSampler({_maxTracesPerSecond}/s)";
     
     /// <summary>
     /// Gets the number of dropped traces due to rate limiting
@@ -204,7 +204,7 @@ public class ConditionalSampler : Sampler
         
         // Get tags/attributes
         var spanKind = samplingParameters.Kind;
-        var attributes = samplingParameters.Attributes;
+        var attributes = samplingParameters.Tags;
         
         try
         {
@@ -236,8 +236,8 @@ public class ConditionalSampler : Sampler
                         continue;
                 }
                 
-                // Match by span kind
-                if (rule.SpanKinds.Count > 0 && !rule.SpanKinds.Contains(spanKind))
+                // Match by span kind - convert SpanKind to ActivityKind for comparison
+                if (rule.SpanKinds.Count > 0 && !rule.SpanKinds.Contains((ActivityKind)spanKind))
                 {
                     continue;
                 }
@@ -271,7 +271,7 @@ public class ConditionalSampler : Sampler
         else if (pattern.StartsWith("*"))
         {
             var suffix = pattern.TrimStart('*');
-            return input.EndsWith(suffix, String.OrdinalIgnoreCase);
+            return input.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
         }
         else if (pattern.EndsWith("*"))
         {
@@ -312,7 +312,7 @@ public class ConditionalSampler : Sampler
     /// <summary>
     /// Description of this sampler
     /// </summary>
-    public override string Description => $"ConditionalSampler({_rules.Count} rules, {_baseSampler.Description})";
+    public new string Description => $"ConditionalSampler({_rules.Count} rules, {_baseSampler.Description})";
 }
 
 /// <summary>
@@ -353,7 +353,7 @@ public class CompositeSampler : Sampler
     /// <summary>
     /// Description of this sampler
     /// </summary>
-    public override string Description => $"CompositeSampler({string.Join(" AND ", _samplers.Select(s => s.Description))})";
+    public new string Description => $"CompositeSampler({string.Join(" AND ", _samplers.Select(s => s.Description))})";
 }
 
 /// <summary>
@@ -414,14 +414,14 @@ public class CompositeCustomSampler : Sampler
     {
         // Always respect the parent decision to maintain trace integrity
         // If parent was sampled, we should also sample this span
-        if (samplingParameters.ParentContext.IsSampled)
+        if (samplingParameters.ParentContext.TraceFlags.HasFlag(ActivityTraceFlags.Recorded))
         {
             return new SamplingResult(SamplingDecision.RecordAndSample);
         }
         
         // Get the span name and kind
         string spanName = samplingParameters.Name;
-        SpanKind spanKind = samplingParameters.Kind;
+        ActivityKind spanKind = (ActivityKind)samplingParameters.Kind;
         
         // Add sampling rule attributes to explain the decision
         var attributes = new Dictionary<string, object>
@@ -430,18 +430,17 @@ public class CompositeCustomSampler : Sampler
         };
         
         // Error-based sampling: if the span indicates an error, use high sampling rate
-        bool isError = false;
         if (samplingParameters.Tags != null)
         {
             foreach (var tag in samplingParameters.Tags)
             {
                 // Check for error tags or status codes
                 if ((tag.Key == "error" && tag.Value?.ToString() == "true") ||
-                    (tag.Key == "http.status_code" && tag.Value?.ToString()?.StartsWith("5") == true))
+                    (tag.Key == "http.status_code" && tag.Value?.ToString() is string statusCode && statusCode.StartsWith("5")))
                 {
-                    isError = true;
                     attributes["sampling.rule"] = "error";
-                    return new SamplingResult(SamplingDecision.RecordAndSample, attributes);
+                    // Use the error sampler instead of always recording
+                    return new SamplingResult(_errorSampler.ShouldSample(samplingParameters).Decision, attributes);
                 }
                 
                 // Check for latency indications
@@ -480,20 +479,98 @@ public class CompositeCustomSampler : Sampler
     private bool IsHighValueOperation(string spanName)
     {
         // Identify operations that represent important business transactions
-        return spanName.Contains("Purchase") ||
-               spanName.Contains("Payment") ||
-               spanName.Contains("Checkout") ||
-               spanName.Contains("Login") ||
-               spanName.Contains("Registration");
+        return spanName.Contains("Purchase", StringComparison.OrdinalIgnoreCase) ||
+               spanName.Contains("Payment", StringComparison.OrdinalIgnoreCase) ||
+               spanName.Contains("Checkout", StringComparison.OrdinalIgnoreCase) ||
+               spanName.Contains("Login", StringComparison.OrdinalIgnoreCase) ||
+               spanName.Contains("Registration", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// Gets the description of this sampler for logging and debugging.
     /// </summary>
     /// <returns>A description of the sampler</returns>
-    public override string Description => 
+    public new string Description => 
         $"CompositeCustomSampler(baseRate={_baseRate}, " +
         $"errorRate={_errorSamplingRate}, " +
         $"highValueRate={_highValueSamplingRate}, " +
         $"latencyThreshold={_latencyThresholdMs}ms)";
+}
+
+/// <summary>
+/// Configuration for OpenTelemetry sampling settings
+/// </summary>
+public class SamplingConfiguration
+{
+    /// <summary>
+    /// Base sampling rate for normal traffic (0.0-1.0)
+    /// </summary>
+    public double DefaultSamplingRate { get; set; } = 0.1;
+    
+    /// <summary>
+    /// Sampling rate for error transactions (0.0-1.0)
+    /// </summary>
+    public double ErrorBasedSamplingRate { get; set; } = 1.0;
+    
+    /// <summary>
+    /// Threshold in milliseconds above which to consider a transaction "slow"
+    /// </summary>
+    public double SlowTransactionThresholdMs { get; set; } = 500;
+    
+    /// <summary>
+    /// Sampling rate for high-value transactions (0.0-1.0)
+    /// </summary>
+    public double BusinessValueSamplingRate { get; set; } = 0.5;
+}
+
+/// <summary>
+/// Represents a rule for conditional sampling
+/// </summary>
+public class SamplingRule
+{
+    /// <summary>
+    /// Name of the sampling rule
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Patterns to match span names against
+    /// </summary>
+    public List<string> SpanNamePatterns { get; set; } = new List<string>();
+    
+    /// <summary>
+    /// Types of span kinds to match
+    /// </summary>
+    public List<ActivityKind> SpanKinds { get; set; } = new List<ActivityKind>();
+    
+    /// <summary>
+    /// Attributes to match on spans
+    /// </summary>
+    public List<AttributeMatch> AttributeMatches { get; set; } = new List<AttributeMatch>();
+    
+    /// <summary>
+    /// The sampling decision to apply when this rule matches
+    /// </summary>
+    public SamplingDecision SamplingDecision { get; set; } = SamplingDecision.RecordAndSample;
+}
+
+/// <summary>
+/// Represents an attribute match condition for sampling rules
+/// </summary>
+public class AttributeMatch
+{
+    /// <summary>
+    /// The attribute key to match
+    /// </summary>
+    public string Key { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The attribute value to match
+    /// </summary>
+    public string Value { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Whether to match exactly or perform a contains match
+    /// </summary>
+    public bool ExactMatch { get; set; } = true;
 }
