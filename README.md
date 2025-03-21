@@ -1,126 +1,225 @@
-# E-Commerce Microservices with OpenTelemetry
+# Microservices Observability with OpenTelemetry
 
-This project demonstrates a microservices-based e-commerce application with comprehensive distributed tracing using OpenTelemetry.
+A demonstration project showing a complete implementation of OpenTelemetry across a .NET microservices ecosystem. This project implements distributed tracing, metrics, and logging with backend visualization and analysis.
 
-## Services
+## Architecture Overview
 
-- **Product Catalog Service**: Manages product information
-- **Order Processing Service**: Handles order creation and processing
-- **Inventory Management Service**: Manages product inventory levels
+This project consists of three microservices that work together to simulate an e-commerce system:
 
-## Observability Components
+- **ProductCatalogService**: Manages product information and inventory
+- **OrderProcessingService**: Handles order creation and processing
+- **InventoryManagementService**: Manages product stock levels and reservations
 
-- **OpenTelemetry Collector**: Collects and processes telemetry data
-- **Jaeger**: Distributed tracing visualization
-- **Zipkin**: Alternative distributed tracing visualization
-- **Prometheus**: Metrics collection and storage
-- **Grafana**: Metrics visualization
+The observability stack includes:
 
-## Getting Started
+- **OpenTelemetry Collector**: Collects, processes, and exports telemetry data
+- **Prometheus**: Stores time-series metrics data
+- **Tempo**: Stores distributed tracing data
+- **Loki**: Stores log data
+- **Grafana**: Unified visualization and dashboarding
 
-### Prerequisites
+![Architecture Diagram](./docs/images/architecture-diagram.png)
 
-- Docker and Docker Compose
-- .NET 9 SDK (for local development)
+## Features
 
-### Running the Application
+- **Distributed Tracing**: End-to-end transaction visibility across services
+- **Metrics Collection**: Business and technical KPIs with real-time dashboards
+- **Structured Logging**: Context-aware logs linked to traces
+- **Health Monitoring**: Service health indicators and alerts
+- **Performance Analysis**: Latency analysis, bottleneck detection
+- **Error Tracking**: Automatic error capture and correlation
+- **Custom Instrumentation**: Business-specific metrics and traces
 
-1. Clone the repository
-2. Run the application using Docker Compose:
+## Prerequisites
+
+- [.NET 7 SDK](https://dotnet.microsoft.com/download) or newer
+- [Docker](https://www.docker.com/products/docker-desktop)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [PowerShell](https://docs.microsoft.com/en-us/powershell/) (for running demo scripts)
+
+## Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone [repository-url]
+cd opentelemetryProjectExample
+```
+
+### 2. Start the Infrastructure Services
 
 ```bash
 docker-compose up -d
 ```
 
-3. The following services will be available:
-   - Product Catalog Service: http://localhost:8001
-   - Order Processing Service: http://localhost:8003
-   - Inventory Management Service: http://localhost:8005
-   - Jaeger UI: http://localhost:16686
-   - Zipkin UI: http://localhost:9411
-   - Prometheus: http://localhost:9090
-   - Grafana: http://localhost:3000
+This starts Prometheus, Grafana, OpenTelemetry Collector, and the database.
 
-## Using Jaeger for Trace Visualization
+### 3. Build and Run the Microservices
 
-Jaeger provides a powerful UI for visualizing and analyzing distributed traces across all services.
-
-### Accessing Jaeger UI
-
-1. Open your browser and navigate to http://localhost:16686
-2. The Jaeger UI will load, showing the trace data from all services
-
-### Finding Traces
-
-1. Use the search panel on the left side to filter traces:
-   - **Service**: Select a service (e.g., ProductCatalogService)
-   - **Operation**: Select a specific operation (e.g., GetAllProducts)
-   - **Tags**: Add key-value pairs to filter by specific attributes
-   - **Lookback**: Select the time range (e.g., Last 1 hour)
-   - **Max Duration** and **Min Duration**: Filter by execution time
-   - **Limit Results**: Set the maximum number of traces to return
-
-2. Click "Find Traces" to retrieve matching traces
-
-### Analyzing Traces
-
-1. Click on a trace in the search results to view its details
-2. The trace visualization shows:
-   - Spans from all services involved in the request
-   - Service names and operations
-   - Timing information (duration, start time)
-   - Parent-child relationships between spans
-   - Errors and warnings
-
-3. Click on individual spans to see:
-   - Detailed timing information
-   - Span attributes (tags)
-   - Log events
-   - Process information
-   - References to other spans
-
-### Tips for Using Jaeger
-
-- Use the minimap at the top to navigate large traces
-- Enable the "Service Performance" view to see statistics for service operations
-- Use the Compare feature to analyze differences between traces
-- Download traces as JSON for offline analysis
-- Use the DAG (Directed Acyclic Graph) tab to see service dependencies
-
-## Testing Distributed Tracing
-
-To generate test traces:
-
-1. Create a new order by sending a POST request to the Order Processing Service
-2. Check the trace in Jaeger to see how the request flows through all services
-3. Use the trace test endpoints for more controlled testing:
-   ```
-   GET /trace-test                     # View trace info for the current service
-   GET /trace-test/chain?targetUrl=... # Test trace propagation between services
-   ```
-
-Example commands for testing trace propagation:
 ```bash
-# Test trace from Order Service to Product Catalog Service
-curl "http://localhost:8003/trace-test/chain?targetUrl=http://product-catalog-service/trace-test"
+# Build all services
+dotnet build
 
-# Test trace from Order Service to Inventory Service
-curl "http://localhost:8003/trace-test/chain?targetUrl=http://inventory-management-service/trace-test"
+# Run services (in separate terminals)
+cd src/ProductCatalogService
+dotnet run
+
+cd src/OrderProcessingService
+dotnet run
+
+cd src/InventoryManagementService
+dotnet run
 ```
 
-## Accessing Grafana
+Alternatively, run all services with Docker Compose:
 
-Grafana provides a powerful platform for visualizing metrics, logs, and traces.
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.services.yml up -d
+```
 
-### Accessing Grafana UI
+### 4. Access the Services
 
-1. Open your browser and navigate to http://localhost:3000
-2. Log in with the default credentials (admin/admin123)
+- **ProductCatalogService**: http://localhost:5001/swagger
+- **OrderProcessingService**: http://localhost:5002/swagger
+- **InventoryManagementService**: http://localhost:5003/swagger
+- **Grafana**: http://localhost:3000 (default credentials: admin/admin)
+- **Prometheus**: http://localhost:9090
+- **OpenTelemetry Collector**: http://localhost:4317 (gRPC), http://localhost:4318 (HTTP)
 
-### Grafana Dashboards
+## Running the Demo Scenario
 
-The following dashboards are available in Grafana:
+We've provided a comprehensive demonstration scenario to showcase the observability features:
 
-1. **Microservices Overview** - General performance metrics
-2. **Distributed Tracing** - Trace visualization and analysis
-3. **Error Tracking** - Error monitoring and analysis
+```powershell
+# Run the automated demo script (starts infrastructure, services, and generates traffic)
+.\scripts\Run-DemoScenario.ps1 -Duration 10 -Intensity Medium
+
+# If you want to just generate traffic to already running services
+.\scripts\Generate-SampleTraffic.ps1 -Duration 5 -Intensity Medium
+```
+
+### Demo Documentation
+
+After running the demo, explore these resources:
+
+1. **[Observability Guided Tour](./docs/ObservabilityGuidedTour.md)**: Step-by-step instructions for exploring the observability features
+2. **[Expected Telemetry Patterns](./docs/ExpectedTelemetryPatterns.md)**: Explanation of the telemetry data patterns generated by the demo
+3. **[OpenTelemetry Concepts](./docs/OpenTelemetryConcepts.md)**: Details on the OpenTelemetry implementation
+4. **[Performance Tuning](./docs/PerformanceTuning.md)**: Guidance on optimizing the observability implementation
+
+## Advanced Configuration
+
+### Environment Variables
+
+Each service supports the following environment variables for customization:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ASPNETCORE_ENVIRONMENT` | Runtime environment | `Development` |
+| `ConnectionStrings__DefaultConnection` | Database connection string | In-memory DB |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint | `http://localhost:4317` |
+| `OTEL_SERVICE_NAME` | Service name for telemetry | Service-specific |
+| `OTEL_RESOURCE_ATTRIBUTES` | Additional resource attributes | Varies |
+
+### Custom Sampling
+
+The application implements custom sampling strategies:
+
+- **Error-based sampling**: Always samples failed transactions
+- **Latency-based sampling**: Increases sampling rate for slow transactions
+- **Business-value sampling**: Higher sampling rates for critical business operations
+
+Configure sampling rates in `appsettings.json`:
+
+```json
+{
+  "OpenTelemetry": {
+    "Sampling": {
+      "BaseRate": 0.1,
+      "ErrorSamplingRate": 1.0,
+      "LatencyThresholdMs": 500,
+      "HighValueSamplingRate": 0.5
+    }
+  }
+}
+```
+
+## Available Dashboards
+
+The project includes pre-configured Grafana dashboards:
+
+1. **Service Health Dashboard**: Overall health and SLIs for each service
+2. **Business KPI Dashboard**: Business-focused metrics and KPIs
+3. **Performance Analysis Dashboard**: Detailed performance metrics for troubleshooting
+4. **Trace Sampling Dashboard**: Analysis of trace sampling effectiveness
+5. **Error Tracking Dashboard**: Error rates, types, and patterns
+6. **Composite Metrics Dashboard**: Combined views of business and technical metrics
+
+## Development Guide
+
+### Project Structure
+
+```
+└── opentelemetryProjectExample/
+    ├── src/
+    │   ├── ProductCatalogService/    # Product catalog microservice
+    │   ├── OrderProcessingService/   # Order processing microservice
+    │   ├── InventoryManagementService/ # Inventory management microservice
+    │   └── Shared.Library/           # Shared code and utilities
+    ├── scripts/
+    │   ├── Generate-SampleTraffic.ps1  # Traffic generation script
+    │   └── Run-DemoScenario.ps1        # Complete demo automation
+    ├── docs/
+    │   ├── ObservabilityGuidedTour.md  # Step-by-step feature tour
+    │   ├── ExpectedTelemetryPatterns.md # Expected telemetry patterns
+    │   ├── OpenTelemetryConcepts.md    # OpenTelemetry documentation
+    │   └── PerformanceTuning.md        # Performance optimization guide
+    ├── grafana/                      # Grafana configuration and dashboards
+    │   ├── dashboards/               # Pre-configured dashboards
+    │   └── provisioning/             # Datasource and dashboard provisioning
+    ├── docker-compose.yml            # Docker composition for infrastructure
+    ├── docker-compose.services.yml   # Docker composition for services
+    ├── otel-collector-config.yaml    # OpenTelemetry Collector configuration
+    └── prometheus.yml                # Prometheus configuration
+```
+
+### Adding New Instrumentation
+
+1. **Custom Metrics**: Use the pattern in `*Metrics.cs` files
+2. **Custom Traces**: See examples in `TracingExtensions.cs`
+3. **Custom Logs**: Follow the patterns in `LoggingExtensions.cs`
+
+### Testing Observability
+
+The project includes test controllers to verify observability components:
+
+- `TracingTestController`: Test distributed tracing
+- `ExceptionHandlingTestController`: Test error tracking
+- `TelemetryTestController`: General telemetry verification
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Services can't connect to OpenTelemetry Collector**
+   - Verify collector is running: `docker ps | grep otel-collector`
+   - Check collector logs: `docker logs otel-collector`
+   - Ensure services use correct endpoint in appsettings.json
+
+2. **Missing traces or metrics in Grafana**
+   - Check data source configurations in Grafana
+   - Verify collector is receiving data: `curl http://localhost:8888/metrics`
+   - Check Prometheus targets: http://localhost:9090/targets
+
+3. **Docker networking issues**
+   - If using Docker Desktop, ensure resources are sufficient
+   - Try restarting the Docker daemon
+   - Verify all containers are on the same network
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](./CONTRIBUTING.md) for details.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

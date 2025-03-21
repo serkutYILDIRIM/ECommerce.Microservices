@@ -1,8 +1,45 @@
+using Microsoft.Extensions.Configuration;
 using OpenTelemetry.Trace;
-using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace Shared.Library.Telemetry.Sampling;
+
+/// <summary>
+/// Custom sampling strategies for OpenTelemetry trace data.
+/// These samplers control how much telemetry is collected based on various conditions.
+/// </summary>
+public static class CustomSamplers
+{
+    /// <summary>
+    /// Adds custom samplers to the trace provider builder.
+    /// This method configures intelligent sampling based on error conditions,
+    /// latency thresholds, and business value.
+    /// </summary>
+    /// <param name="builder">The TracerProviderBuilder to add samplers to</param>
+    /// <param name="configuration">Configuration containing sampling settings</param>
+    /// <param name="serviceName">The name of the service for tracking</param>
+    /// <returns>The updated builder for chaining</returns>
+    public static TracerProviderBuilder AddCustomSamplers(
+        this TracerProviderBuilder builder,
+        IConfiguration configuration,
+        string serviceName)
+    {
+        // Get sampling configuration from appsettings.json
+        var samplingConfig = configuration.GetSection("OpenTelemetry:Sampling").Get<SamplingConfiguration>() 
+            ?? new SamplingConfiguration();
+        
+        // Register the custom composite sampler
+        builder.SetSampler(new CompositeCustomSampler(
+            serviceName,
+            samplingConfig.BaseRate,
+            samplingConfig.ErrorSamplingRate,
+            samplingConfig.LatencyThresholdMs,
+            samplingConfig.HighValueSamplingRate));
+        
+        return builder;
+    }
+}
 
 /// <summary>
 /// ParentBased sampler that respects the parent span's sampling decision
@@ -233,7 +270,7 @@ public class ConditionalSampler : Sampler
         else if (pattern.StartsWith("*"))
         {
             var suffix = pattern.TrimStart('*');
-            return input.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+            return input.EndsWith(suffix, String.OrdinalIgnoreCase);
         }
         else if (pattern.EndsWith("*"))
         {
@@ -316,4 +353,146 @@ public class CompositeSampler : Sampler
     /// Description of this sampler
     /// </summary>
     public override string Description => $"CompositeSampler({string.Join(" AND ", _samplers.Select(s => s.Description))})";
+}
+
+/// <summary>
+/// A composite sampler that combines multiple sampling strategies.
+/// This allows applying different sampling rates based on request characteristics.
+/// </summary>
+public class CompositeCustomSampler : Sampler
+{
+    private readonly string _serviceName;
+    private readonly double _baseRate;
+    private readonly double _errorSamplingRate;
+    private readonly double _latencyThresholdMs;
+    private readonly double _highValueSamplingRate;
+    
+    // Basic probability sampler for standard requests
+    private readonly TraceIdRatioBasedSampler _baseSampler;
+    
+    // Sampler for high-value business transactions
+    private readonly TraceIdRatioBasedSampler _highValueSampler;
+    
+    // Always sample errors at a higher rate
+    private readonly TraceIdRatioBasedSampler _errorSampler;
+
+    /// <summary>
+    /// Creates a new composite sampler with multiple sampling strategies.
+    /// </summary>
+    /// <param name="serviceName">Service name for tracking sampling metrics</param>
+    /// <param name="baseRate">Base sampling rate for normal traffic (0.0-1.0)</param>
+    /// <param name="errorSamplingRate">Sampling rate for error transactions (0.0-1.0)</param>
+    /// <param name="latencyThresholdMs">Threshold above which to consider a transaction "slow"</param>
+    /// <param name="highValueSamplingRate">Sampling rate for high-value transactions (0.0-1.0)</param>
+    public CompositeCustomSampler(
+        string serviceName,
+        double baseRate = 0.1,
+        double errorSamplingRate = 1.0,
+        double latencyThresholdMs = 500,
+        double highValueSamplingRate = 0.5)
+    {
+        _serviceName = serviceName;
+        _baseRate = baseRate;
+        _errorSamplingRate = errorSamplingRate;
+        _latencyThresholdMs = latencyThresholdMs;
+        _highValueSamplingRate = highValueSamplingRate;
+        
+        // Initialize the individual samplers
+        _baseSampler = new TraceIdRatioBasedSampler(baseRate);
+        _highValueSampler = new TraceIdRatioBasedSampler(highValueSamplingRate);
+        _errorSampler = new TraceIdRatioBasedSampler(errorSamplingRate);
+    }
+
+    /// <summary>
+    /// Makes sampling decisions based on trace ID, parent context, and span kind.
+    /// Implements intelligent sampling based on multiple criteria.
+    /// </summary>
+    /// <param name="samplingParameters">Parameters for the sampling decision</param>
+    /// <returns>Sampling decision with result and attributes</returns>
+    public override SamplingResult ShouldSample(in SamplingParameters samplingParameters)
+    {
+        // Always respect the parent decision to maintain trace integrity
+        // If parent was sampled, we should also sample this span
+        if (samplingParameters.ParentContext.IsSampled)
+        {
+            return new SamplingResult(SamplingDecision.RecordAndSample);
+        }
+        
+        // Get the span name and kind
+        string spanName = samplingParameters.Name;
+        SpanKind spanKind = samplingParameters.Kind;
+        
+        // Add sampling rule attributes to explain the decision
+        var attributes = new Dictionary<string, object>
+        {
+            ["sampling.rule"] = "default"
+        };
+        
+        // Error-based sampling: if the span indicates an error, use high sampling rate
+        bool isError = false;
+        if (samplingParameters.Tags != null)
+        {
+            foreach (var tag in samplingParameters.Tags)
+            {
+                // Check for error tags or status codes
+                if ((tag.Key == "error" && tag.Value?.ToString() == "true") ||
+                    (tag.Key == "http.status_code" && tag.Value?.ToString()?.StartsWith("5") == true))
+                {
+                    isError = true;
+                    attributes["sampling.rule"] = "error";
+                    return new SamplingResult(SamplingDecision.RecordAndSample, attributes);
+                }
+                
+                // Check for latency indications
+                if (tag.Key == "duration_ms" && tag.Value is double durationMs && durationMs > _latencyThresholdMs)
+                {
+                    attributes["sampling.rule"] = "latency";
+                    return new SamplingResult(SamplingDecision.RecordAndSample, attributes);
+                }
+                
+                // Check for high-value business transactions
+                if (tag.Key == "business.value" && tag.Value?.ToString() == "high")
+                {
+                    attributes["sampling.rule"] = "high_value";
+                    return _highValueSampler.ShouldSample(samplingParameters);
+                }
+            }
+        }
+        
+        // Apply high-value sampling for specific operations
+        if (IsHighValueOperation(spanName))
+        {
+            attributes["sampling.rule"] = "high_value_operation";
+            return _highValueSampler.ShouldSample(samplingParameters);
+        }
+        
+        // Apply normal base rate sampling for standard requests
+        return _baseSampler.ShouldSample(samplingParameters);
+    }
+
+    /// <summary>
+    /// Determines if an operation is high-value based on its name.
+    /// High-value operations get sampled at a higher rate.
+    /// </summary>
+    /// <param name="spanName">The name of the span representing the operation</param>
+    /// <returns>True if the operation is considered high-value</returns>
+    private bool IsHighValueOperation(string spanName)
+    {
+        // Identify operations that represent important business transactions
+        return spanName.Contains("Purchase") ||
+               spanName.Contains("Payment") ||
+               spanName.Contains("Checkout") ||
+               spanName.Contains("Login") ||
+               spanName.Contains("Registration");
+    }
+
+    /// <summary>
+    /// Gets the description of this sampler for logging and debugging.
+    /// </summary>
+    /// <returns>A description of the sampler</returns>
+    public override string Description => 
+        $"CompositeCustomSampler(baseRate={_baseRate}, " +
+        $"errorRate={_errorSamplingRate}, " +
+        $"highValueRate={_highValueSamplingRate}, " +
+        $"latencyThreshold={_latencyThresholdMs}ms)";
 }
