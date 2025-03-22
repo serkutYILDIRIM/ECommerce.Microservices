@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using InventoryManagementService.Data;
 using InventoryManagementService.Models;
 using Shared.Library.Metrics;
 
@@ -17,6 +18,7 @@ public class InventoryMetrics
     private readonly Histogram<double> _reservationProcessingTimeHistogram;
     private readonly Histogram<double> _stockLevelChangeHistogram;
     private readonly ILogger<InventoryMetrics> _logger;
+    private readonly IServiceScopeFactory _serviceScopeFactory; // Add this field
 
     // Business metrics
     private readonly Counter<long> _stockoutEventsCounter;
@@ -24,10 +26,11 @@ public class InventoryMetrics
     private readonly Histogram<double> _stockTurnoverRateHistogram;
     private readonly Counter<long> _inventoryAdjustmentsCounter;
 
-    public InventoryMetrics(MeterProvider meterProvider, ILogger<InventoryMetrics> logger)
+    public InventoryMetrics(MeterProvider meterProvider, ILogger<InventoryMetrics> logger, IServiceScopeFactory serviceScopeFactory) // Add parameter here
     {
         _meter = meterProvider.AppMeter;
         _logger = logger;
+        _serviceScopeFactory = serviceScopeFactory; // Store the service scope factory
 
         // Create counters
         _inventoryChecksCounter = _meter.CreateCounter<long>(
@@ -81,48 +84,48 @@ public class InventoryMetrics
             name: "inventory.stock.level.change",
             unit: "{units}",
             description: "Changes in inventory stock levels");
-
         // Create observable gauges
         _meter.CreateObservableGauge(
             name: "inventory.total_stock_count",
-            observeValue: GetTotalStockCount,
+            observeValue: () => GetTotalStockCount().First().Value,
             unit: "{units}",
             description: "Total units of all inventory items");
 
         _meter.CreateObservableGauge(
             name: "inventory.reserved_stock_count",
-            observeValue: GetTotalReservedCount,
+            observeValue: () => GetTotalReservedCount().First().Value,
             unit: "{units}",
             description: "Total reserved units across all inventory items");
 
         _meter.CreateObservableGauge(
             name: "inventory.low_stock_items_count",
-            observeValue: GetLowStockItemsCount,
+            observeValue: () => GetLowStockItemsCount().First().Value,
             unit: "{items}",
             description: "Number of inventory items with stock at or below reorder threshold");
 
         // Create an observable gauge for inventory efficiency
         _meter.CreateObservableGauge(
             name: "business.inventory.efficiency",
-            observeValue: GetInventoryEfficiency,
+            observeValue: () => GetInventoryEfficiency().First().Value,
             unit: "{ratio}",
             description: "Ratio of available to reserved inventory");
-            
+
         // Create an observable gauge for inventory health score
         _meter.CreateObservableGauge(
             name: "business.inventory.health_score",
-            observeValue: CalculateInventoryHealthScore,
+            observeValue: () => CalculateInventoryHealthScore().First().Value,
             unit: "{score}",
             description: "Overall score of inventory health (0-100)");
-            
+
         // Create an observable gauge for average days to restock
         _meter.CreateObservableGauge(
             name: "business.inventory.avg_restock_days",
-            observeValue: GetAverageRestockDays,
+            observeValue: () => GetAverageRestockDays().First().Value,
             unit: "d",
             description: "Average number of days between restocks");
 
         _logger.LogInformation("Inventory metrics initialized");
+
     }
 
     public void RecordInventoryCheck(int productId, int requestedQuantity, bool isAvailable)
@@ -210,147 +213,156 @@ public class InventoryMetrics
     // Observable gauge functions
     private IEnumerable<Measurement<int>> GetTotalStockCount()
     {
+        int totalStock = 0;
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            var totalStock = dbContext.Inventory.Sum(i => i.QuantityAvailable);
-            
-            yield return new Measurement<int>(totalStock);
+            totalStock = dbContext.InventoryItems.Sum(i => i.QuantityAvailable);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting total stock count for metrics");
-            yield return new Measurement<int>(0);
+            totalStock = 0;
         }
+
+        yield return new Measurement<int>(totalStock);
     }
+
+
 
     private IEnumerable<Measurement<int>> GetTotalReservedCount()
     {
+        int totalReserved = 0;
+
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            var totalReserved = dbContext.Inventory.Sum(i => i.QuantityReserved);
-            
-            yield return new Measurement<int>(totalReserved);
+            totalReserved = dbContext.InventoryItems.Sum(i => i.QuantityReserved);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting total reserved count for metrics");
-            yield return new Measurement<int>(0);
+            totalReserved = 0;
         }
+
+        yield return new Measurement<int>(totalReserved);
     }
 
     private IEnumerable<Measurement<int>> GetLowStockItemsCount()
     {
+        int lowStockCount = 0;
+
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            var lowStockCount = dbContext.Inventory.Count(i => i.QuantityAvailable <= i.ReorderThreshold);
-            
-            yield return new Measurement<int>(lowStockCount);
+            lowStockCount = dbContext.InventoryItems.Count(i => i.QuantityAvailable <= i.ReorderThreshold);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting low stock items count for metrics");
-            yield return new Measurement<int>(0);
+            lowStockCount = 0;
         }
+
+        yield return new Measurement<int>(lowStockCount);
     }
 
     // Calculate inventory efficiency
     private IEnumerable<Measurement<double>> GetInventoryEfficiency()
     {
+        double efficiency = 0;
+
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope(); // Fixed to use _serviceScopeFactory
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            
-            var totalAvailable = dbContext.Inventory.Sum(i => i.QuantityAvailable);
-            var totalReserved = dbContext.Inventory.Sum(i => i.QuantityReserved);
-            
-            if (totalAvailable == 0)
-                yield return new Measurement<double>(0);
-            else
+
+            var totalAvailable = dbContext.InventoryItems.Sum(i => i.QuantityAvailable);
+            var totalReserved = dbContext.InventoryItems.Sum(i => i.QuantityReserved);
+
+            if (totalAvailable > 0)
             {
-                var efficiency = (double)(totalAvailable - totalReserved) / totalAvailable;
-                yield return new Measurement<double>(efficiency);
+                efficiency = (double)(totalAvailable - totalReserved) / totalAvailable;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating inventory efficiency");
-            yield return new Measurement<double>(0);
+            efficiency = 0;
         }
+
+        yield return new Measurement<double>(efficiency);
     }
 
     // Calculate inventory health score
     private IEnumerable<Measurement<double>> CalculateInventoryHealthScore()
     {
+        double overallScore = 0;
+
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            
-            var inventoryItems = dbContext.Inventory.ToList();
-            if (!inventoryItems.Any())
-                yield return new Measurement<double>(0);
-            else
+
+            var inventoryItems = dbContext.InventoryItems.ToList();
+            if (inventoryItems.Any())
             {
-                double overallScore = 0;
-                
                 foreach (var item in inventoryItems)
                 {
                     // Check if stock is above threshold
-                    double thresholdScore = item.QuantityAvailable > item.ReorderThreshold ? 100 : 
+                    double thresholdScore = item.QuantityAvailable > item.ReorderThreshold ? 100 :
                         (double)item.QuantityAvailable / item.ReorderThreshold * 100;
-                    
+
                     // Check reservation ratio
-                    double reservationRatio = item.QuantityAvailable == 0 ? 0 : 
+                    double reservationRatio = item.QuantityAvailable == 0 ? 0 :
                         (double)(item.QuantityAvailable - item.QuantityReserved) / item.QuantityAvailable;
                     double reservationScore = reservationRatio * 100;
-                    
+
                     // Calculate item score (weighted average)
                     double itemScore = (thresholdScore * 0.7) + (reservationScore * 0.3);
                     overallScore += itemScore;
                 }
-                
+
                 // Average score across all items
                 overallScore /= inventoryItems.Count;
-                yield return new Measurement<double>(overallScore);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating inventory health score");
-            yield return new Measurement<double>(0);
+            overallScore = 0;
         }
+
+        yield return new Measurement<double>(overallScore);
     }
 
     // Calculate average days to restock
     private IEnumerable<Measurement<double>> GetAverageRestockDays()
     {
+        double avgDays = 0;
+
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            
+
             var now = DateTime.UtcNow;
-            var items = dbContext.Inventory.Where(i => i.LastRestocked != default).ToList();
-            
-            if (!items.Any())
-                yield return new Measurement<double>(0);
-            else
+            var items = dbContext.InventoryItems.Where(i => i.LastRestocked != default).ToList();
+
+            if (items.Any())
             {
-                var avgDays = items.Average(i => (now - i.LastRestocked).TotalDays);
-                yield return new Measurement<double>(avgDays);
+                avgDays = items.Average(i => (now - i.LastRestocked).TotalDays);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating average restock days");
-            yield return new Measurement<double>(0);
+            avgDays = 0;
         }
+
+        yield return new Measurement<double>(avgDays);
     }
+
 }

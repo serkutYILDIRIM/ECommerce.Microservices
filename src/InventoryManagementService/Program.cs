@@ -6,7 +6,17 @@ using Shared.Library.Telemetry;
 using Shared.Library.Middleware;
 using Shared.Library.Logging;
 using Shared.Library.Controllers;
+using Shared.Library.Telemetry.Sampling; // Add namespace for SamplerType and other sampling-related types
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Shared.Library.Telemetry.Baggage;
+using Shared.Library.Services;
+using InventoryManagementService.Services;
+using Shared.Library.DependencyInjection;
+using Shared.Library.Metrics;
+using InventoryManagementService.Metrics;
+using Shared.Library.Data;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,42 +43,39 @@ builder.Services.AddControllers()
 builder.Services.AddSingleton(new Shared.Library.Telemetry.HttpClientContextPropagator(TelemetryConfig.ServiceName));
 
 // Add OpenTelemetry with enhanced configuration and custom span processors
-builder.Services.AddServiceTelemetry(
-    TelemetryConfig.ServiceName, 
-    TelemetryConfig.ServiceVersion,
-    configureSampling: options => {
+IServiceCollection serviceCollection = builder.Services.AddOpenTelemetryServices(
+    configuration: builder.Configuration, 
+    serviceName: TelemetryConfig.ServiceName,
+    serviceVersion: TelemetryConfig.ServiceVersion,
+    configure: options =>
+    {
         options.SamplerType = SamplerType.ParentBased;
         options.SamplingProbability = 0.3; // Medium sampling for inventory service
         options.UseCompositeSampling = true;
         options.MaxTracesPerSecond = 40; // Max 40 traces per second
-        
+
         // Always sample stock level checks and reservations
         options.Rules.Add(new SamplingRule
         {
             Name = "InventoryOperations",
-            SpanNamePatterns = new List<string> { 
-                "*Inventory.CheckStock*", 
-                "*Inventory.Reserve*",
-                "*InventoryMonitoring*"
+            SpanNamePatterns = new List<string> {
+                    "*Inventory.CheckStock*",
+                    "*Inventory.Reserve*",
+                    "*InventoryMonitoring*"
             },
             SamplingDecision = SamplingDecision.RecordAndSample
         });
-        
+
         // Always sample operations for low stock items
         options.Rules.Add(new SamplingRule
         {
             Name = "LowStockItems",
-            AttributeMatches = new List<AttributeMatch> 
+            AttributeMatches = new List<AttributeMatch>
             {
-                new AttributeMatch { Key = "inventory.low_stock", Value = "true" }
+                    new AttributeMatch { Key = "inventory.low_stock", Value = "true" }
             },
             SamplingDecision = SamplingDecision.RecordAndSample
         });
-    },
-    tracerType: TracerProviderType.AspNet,
-    customExporterConfigure: options => {
-        options.SlowSpanThresholdMs = 750; // Medium threshold for inventory service
-        options.WithOperationNames("Inventory.CheckStock", "Inventory.Reserve", "Inventory.Release");
     });
 
 // Add services required for async context propagation
@@ -100,13 +107,17 @@ builder.Services.AddScoped<IInventoryBusinessRules, InventoryBusinessRules>();
 builder.Services.AddSingleton<InventoryReservationQueue>();
 
 // Register background services
-builder.Services.AddHostedService<BackgroundServices.InventoryMonitoringService>();
+builder.Services.AddHostedService<InventoryManagementService.BackgroundServices.InventoryMonitoringService>();
 
 var app = builder.Build();
 
+// Create logger instance
+var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+var logger = loggerFactory.CreateLogger("Program");
+
 // Enable scope creation for metrics
 // This allows static access to the service provider for observableGauges
-public static IServiceScope CreateScope() => 
+  IServiceScope CreateScope() => 
     app.Services.CreateScope();
 
 // Configure the HTTP request pipeline.
@@ -147,7 +158,7 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 // Expose Prometheus metrics
-app.MapPrometheusScrapingEndpoint();
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 // Define API endpoints
 app.MapGet("/inventory", async (InventoryDbContext db) =>
@@ -156,7 +167,7 @@ app.MapGet("/inventory", async (InventoryDbContext db) =>
     
     try
     {
-        var query = db.Inventory.AsQueryable();
+        var query = db.InventoryItems.AsQueryable();
         var inventory = await query.ToTrackedListAsync(
             "GetAllInventory", 
             TelemetryConfig.ActivitySource);
@@ -183,7 +194,7 @@ app.MapGet("/inventory/{id}", async (int id, InventoryDbContext db) =>
     
     try
     {
-        var inventoryItem = await db.Inventory.FindAsync(id);
+        var inventoryItem = await db.InventoryItems.FindAsync(id);
         
         if (inventoryItem == null)
         {
@@ -216,7 +227,7 @@ app.MapGet("/inventory/product/{productId}", async (int productId, InventoryDbCo
     
     try
     {
-        var inventoryItem = await db.Inventory.FirstOrDefaultAsync(i => i.ProductId == productId);
+        var inventoryItem = await db.InventoryItems.FirstOrDefaultAsync(i => i.ProductId == productId);
         
         if (inventoryItem == null)
         {
@@ -251,7 +262,7 @@ app.MapGet("/inventory/check/{productId}", async (int productId, int quantity, I
     
     try
     {
-        var inventoryItem = await db.Inventory.FirstOrDefaultAsync(i => i.ProductId == productId);
+        var inventoryItem = await db.InventoryItems.FirstOrDefaultAsync(i => i.ProductId == productId);
         
         if (inventoryItem == null)
         {
@@ -325,7 +336,7 @@ app.MapPost("/inventory", async (InventoryItem inventoryItem, InventoryDbContext
     try
     {
         // Check if inventory for the product already exists
-        var existingItem = await db.Inventory.FirstOrDefaultAsync(i => i.ProductId == inventoryItem.ProductId);
+        var existingItem = await db.InventoryItems.FirstOrDefaultAsync(i => i.ProductId == inventoryItem.ProductId);
         
         if (existingItem != null)
         {
@@ -336,7 +347,7 @@ app.MapPost("/inventory", async (InventoryItem inventoryItem, InventoryDbContext
         
         inventoryItem.LastUpdated = DateTime.UtcNow;
         
-        db.Inventory.Add(inventoryItem);
+        db.InventoryItems.Add(inventoryItem);
         await db.SaveChangesAsync();
         
         activity?.SetTag("inventory.id", inventoryItem.Id);
@@ -364,7 +375,7 @@ app.MapPut("/inventory/{id}", async (int id, InventoryItem updatedItem, Inventor
     
     try
     {
-        var inventoryItem = await db.Inventory.FindAsync(id);
+        var inventoryItem = await db.InventoryItems.FindAsync(id);
         
         if (inventoryItem == null)
         {
@@ -428,7 +439,7 @@ app.MapPost("/inventory/reserve", async (InventoryReservation reservation, Inven
         using var lookupActivity = TelemetryConfig.ActivitySource.StartActivity("FindInventoryForReservation");
         lookupActivity?.SetTag("product.id", reservation.ProductId);
         
-        var inventoryItem = await db.Inventory.FirstOrDefaultAsync(i => i.ProductId == reservation.ProductId);
+        var inventoryItem = await db.InventoryItems.FirstOrDefaultAsync(i => i.ProductId == reservation.ProductId);
         
         if (inventoryItem == null)
         {
@@ -581,7 +592,7 @@ app.MapPost("/inventory/fulfill", async (InventoryReservation fulfillment, Inven
     
     try
     {
-        var inventoryItem = await db.Inventory.FirstOrDefaultAsync(i => i.ProductId == fulfillment.ProductId);
+        var inventoryItem = await db.InventoryItems.FirstOrDefaultAsync(i => i.ProductId == fulfillment.ProductId);
         
         if (inventoryItem == null)
         {
@@ -662,7 +673,7 @@ app.MapDelete("/inventory/{id}", async (int id, InventoryDbContext db) =>
     
     try
     {
-        var inventoryItem = await db.Inventory.FindAsync(id);
+        var inventoryItem = await db.InventoryItems.FindAsync(id);
         
         if (inventoryItem == null)
         {
@@ -672,7 +683,7 @@ app.MapDelete("/inventory/{id}", async (int id, InventoryDbContext db) =>
         
         activity?.SetTag("product.id", inventoryItem.ProductId);
         
-        db.Inventory.Remove(inventoryItem);
+        db.InventoryItems.Remove(inventoryItem);
         await db.SaveChangesAsync();
         
         activity?.SetTag("inventory.found", true);

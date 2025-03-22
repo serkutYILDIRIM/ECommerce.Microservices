@@ -72,7 +72,7 @@ public class InventoryController : ControllerBase
                     ProductId = inventoryItem.ProductId,
                     QuantityAvailable = inventoryItem.QuantityAvailable,
                     IsInStock = inventoryItem.QuantityAvailable > 0,
-                    ReservedQuantity = inventoryItem.ReservedQuantity,
+                    ReservedQuantity = inventoryItem.QuantityReserved,
                     LastUpdated = inventoryItem.LastUpdated
                 };
                 activity?.SetTag("business.rule.applied", "standard");
@@ -185,7 +185,7 @@ public class InventoryController : ControllerBase
         
         // Apply reservation
         inventoryItem.QuantityAvailable -= request.Quantity;
-        inventoryItem.ReservedQuantity += request.Quantity;
+        inventoryItem.QuantityReserved += request.Quantity;
         inventoryItem.LastUpdated = DateTime.UtcNow;
         
         // Create reservation record

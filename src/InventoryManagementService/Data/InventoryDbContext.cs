@@ -22,7 +22,7 @@ public class InventoryDbContext : DbContext
             entity.HasKey(e => e.ProductId);
             entity.Property(e => e.ProductName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.QuantityAvailable).IsRequired();
-            entity.Property(e => e.ReservedQuantity).IsRequired();
+            entity.Property(e => e.QuantityReserved).IsRequired();
             entity.Property(e => e.LastUpdated).IsRequired();
         });
         
@@ -40,9 +40,9 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.CorrelationId).HasMaxLength(50);
             entity.Property(e => e.CustomerTier).HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500);
-            
+
             // Define relationship with InventoryItem
-            entity.HasOne(e => e.InventoryItem)
+            entity.HasOne<InventoryItem>()
                   .WithMany()
                   .HasForeignKey(e => e.ProductId);
         });
@@ -60,7 +60,7 @@ public class InventoryDbContext : DbContext
                 ProductId = 1,
                 ProductName = "Widget A",
                 QuantityAvailable = 100,
-                ReservedQuantity = 10,
+                QuantityReserved = 10,
                 LastUpdated = DateTime.UtcNow
             },
             new InventoryItem
@@ -68,7 +68,7 @@ public class InventoryDbContext : DbContext
                 ProductId = 2,
                 ProductName = "Widget B",
                 QuantityAvailable = 50,
-                ReservedQuantity = 5,
+                QuantityReserved = 5,
                 LastUpdated = DateTime.UtcNow
             },
             new InventoryItem
@@ -76,7 +76,7 @@ public class InventoryDbContext : DbContext
                 ProductId = 3,
                 ProductName = "Gadget C",
                 QuantityAvailable = 75,
-                ReservedQuantity = 15,
+                QuantityReserved = 15,
                 LastUpdated = DateTime.UtcNow
             }
         );

@@ -4,6 +4,8 @@ using InventoryManagementService.Metrics;
 using InventoryManagementService.Models;
 using InventoryManagementService.Telemetry;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Trace;
+using Shared.Library.Logging;
 
 namespace InventoryManagementService.BackgroundServices;
 
@@ -135,7 +137,7 @@ public class InventoryMonitoringService : BackgroundService
         try
         {
             // Find items that are at or below reorder threshold
-            var lowStockItems = await dbContext.Inventory
+            var lowStockItems = await dbContext.InventoryItems
                 .Where(i => i.QuantityAvailable - i.QuantityReserved <= i.ReorderThreshold)
                 .ToListAsync(stoppingToken);
             

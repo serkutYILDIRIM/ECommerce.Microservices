@@ -3,7 +3,7 @@ namespace InventoryManagementService.Models;
 /// <summary>
 /// Represents a reservation of inventory for an order
 /// </summary>
-public class InventoryReservation
+public class InventoryReservationRemove
 {
     public int Id { get; set; }
     public int ProductId { get; set; }
@@ -16,7 +16,6 @@ public class InventoryReservation
     public string CorrelationId { get; set; }
     public string CustomerTier { get; set; }
     public string Notes { get; set; }
-    
     // Navigation property
     public InventoryItem InventoryItem { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Shared.Library.Metrics;
 
@@ -130,50 +131,50 @@ public class BackgroundServiceMetrics
             name: "background_service.item_processing_failures",
             unit: "{failures}",
             description: "Number of item processing failures");
-        
+
         // Observable metrics
         _meter.CreateObservableGauge(
             name: "background_service.is_running",
-            observeValue: () => new[] { new Measurement<int>(_isRunning ? 1 : 0) },
+            observeValue: () => _isRunning ? 1 : 0,
             unit: "{state}",
             description: "Whether the background service is currently running");
-            
+
         _meter.CreateObservableGauge(
             name: "background_service.uptime",
-            observeValue: () => 
+            observeValue: () =>
             {
                 if (!_isRunning || _startTime == DateTime.MinValue)
-                    return new[] { new Measurement<double>(0) };
-                    
-                return new[] { new Measurement<double>((DateTime.UtcNow - _startTime).TotalSeconds) };
+                    return 0;
+
+                return (DateTime.UtcNow - _startTime).TotalSeconds;
             },
             unit: "s",
             description: "Uptime of the background service in seconds");
-            
+
         _meter.CreateObservableGauge(
             name: "background_service.time_since_last_execution",
-            observeValue: () => 
+            observeValue: () =>
             {
                 if (_lastSuccessfulExecution == DateTime.MinValue)
-                    return new[] { new Measurement<double>(0) };
-                    
-                return new[] { new Measurement<double>((DateTime.UtcNow - _lastSuccessfulExecution).TotalSeconds) };
+                    return 0;
+
+                return (DateTime.UtcNow - _lastSuccessfulExecution).TotalSeconds;
             },
             unit: "s",
             description: "Time since last successful execution in seconds");
-            
+
         _meter.CreateObservableGauge(
             name: "background_service.consecutive_failures",
-            observeValue: () => new[] { new Measurement<long>(_consecutiveFailures) },
+            observeValue: () => _consecutiveFailures,
             unit: "{failures}",
             description: "Number of consecutive execution failures");
-            
+
         _meter.CreateObservableGauge(
             name: "background_service.health_score",
-            observeValue: CalculateHealthScore,
+            observeValue: () => CalculateHealthScore(),
             unit: "{score}",
             description: "Health score of the background service (0-100)");
-            
+
         _logger.LogInformation("Background service metrics initialized");
     }
 
@@ -364,32 +365,32 @@ public class BackgroundServiceMetrics
             _itemProcessingFailureCounter.Add(1, tags.ToArray());
         }
     }
-    
+
     #endregion
-    
+
     #region Health Score
-    
-    private IEnumerable<Measurement<double>> CalculateHealthScore()
+
+    private double CalculateHealthScore()
     {
         try
         {
             double score = 100;
-            
+
             // If service isn't running, score is 0
             if (!_isRunning)
-                return new[] { new Measurement<double>(0) };
-                
+                return 0;
+
             // If we've never had a successful execution, score is low
             if (_lastSuccessfulExecution == DateTime.MinValue)
-                return new[] { new Measurement<double>(10) };
-                
+                return 10;
+
             // Deduct points for consecutive failures
             if (_consecutiveFailures > 0)
             {
                 // Deduct 10 points for each consecutive failure, up to 50 points
                 score -= Math.Min(50, _consecutiveFailures * 10);
             }
-            
+
             // Deduct points for high failure rate
             if (_totalExecutions > 0)
             {
@@ -397,7 +398,7 @@ public class BackgroundServiceMetrics
                 // Deduct up to 30 points for high failure rate
                 score -= failureRate * 30;
             }
-            
+
             // Deduct points for staleness (no recent successful execution)
             var timeSinceLastSuccess = DateTime.UtcNow - _lastSuccessfulExecution;
             if (timeSinceLastSuccess.TotalMinutes > 5)
@@ -405,18 +406,19 @@ public class BackgroundServiceMetrics
                 // Deduct up to 20 points for staleness
                 score -= Math.Min(20, timeSinceLastSuccess.TotalMinutes);
             }
-            
+
             // Ensure score is between 0 and 100
             score = Math.Max(0, Math.Min(100, score));
-            
-            return new[] { new Measurement<double>(score) };
+
+            return score;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating health score");
-            return new[] { new Measurement<double>(0) };
+            return 0;
         }
     }
-    
+
+
     #endregion
 }

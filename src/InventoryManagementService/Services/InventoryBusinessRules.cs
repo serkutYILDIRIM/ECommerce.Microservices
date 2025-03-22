@@ -147,7 +147,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
             ProductId = item.ProductId,
             QuantityAvailable = item.QuantityAvailable + premiumAllocation,
             IsInStock = item.QuantityAvailable + premiumAllocation > 0,
-            ReservedQuantity = item.ReservedQuantity - premiumAllocation, // Adjusted for visibility
+            ReservedQuantity = item.QuantityReserved - premiumAllocation, // Adjusted for visibility
             LastUpdated = item.LastUpdated,
             CustomerTier = context.CustomerTier
         };
@@ -204,7 +204,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
     private int CalculatePremiumAllocation(InventoryItem item)
     {
         // If there's no reserved stock, no allocation
-        if (item.ReservedQuantity <= 0)
+        if (item.QuantityReserved <= 0)
             return 0;
             
         // Get percentage allocation based on tier
@@ -214,7 +214,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
             : 0;
             
         // Calculate the allocation
-        return (int)Math.Ceiling(item.ReservedQuantity * allocationPercentage / 100.0);
+        return (int)Math.Ceiling(item.QuantityReserved * allocationPercentage / 100.0);
     }
     
     /// <summary>

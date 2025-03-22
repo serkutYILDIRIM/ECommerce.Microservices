@@ -6,6 +6,7 @@ using Shared.Library.Telemetry;
 using Shared.Library.Models;
 using Shared.Library.Policies;
 using Shared.Library.Telemetry.Baggage;
+using Shared.Library.Extensions;
 
 namespace OrderProcessingService.Services;
 

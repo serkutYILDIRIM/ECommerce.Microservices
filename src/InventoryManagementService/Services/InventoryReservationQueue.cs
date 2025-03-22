@@ -1,5 +1,6 @@
 using InventoryManagementService.Controllers;
 using InventoryManagementService.Data;
+using InventoryManagementService.Models;
 using Shared.Library.Services;
 using Shared.Library.Telemetry.Baggage;
 using Shared.Library.Telemetry.Contexts;
@@ -219,7 +220,7 @@ public class InventoryReservationQueue : IDisposable
         {
             // Apply the reservation
             inventoryItem.QuantityAvailable -= task.Request.Quantity;
-            inventoryItem.ReservedQuantity += task.Request.Quantity;
+            inventoryItem.QuantityReserved += task.Request.Quantity;
             inventoryItem.LastUpdated = DateTime.UtcNow;
             
             // Create reservation record
@@ -250,7 +251,7 @@ public class InventoryReservationQueue : IDisposable
             
             _logger.LogInformation(
                 "Successfully processed queued reservation for product {ProductId}, queue wait time {WaitTime}ms",
-                task.Request.ProductId, (task.CompletedAt - task.SubmittedAt).TotalMilliseconds);
+                task.Request.ProductId, (task.CompletedAt - task.SubmittedAt));
         }
         catch (Exception ex)
         {
