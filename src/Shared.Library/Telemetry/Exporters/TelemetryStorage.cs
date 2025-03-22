@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
 namespace Shared.Library.Telemetry.Exporters;

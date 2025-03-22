@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
 using Shared.Library.Metrics;
@@ -221,20 +222,66 @@ public static class DataExtensions
 public static class ActivityExtensions
 {
     private const string ServiceProviderKey = "ServiceProvider";
-    
+
     public static Activity SetServiceProvider(this Activity activity, IServiceProvider serviceProvider)
     {
-        activity.SetTag(ServiceProviderKey, serviceProvider);
+        var id = ActivityServiceProviderRegistry.RegisterProvider(serviceProvider);
+        activity.SetTag(ServiceProviderKey, id);
         return activity;
     }
-    
+
+
     public static IServiceProvider? GetServiceProvider(this Activity? activity)
     {
         if (activity == null) return null;
-        
-        if (activity.Tags.FirstOrDefault(t => t.Key == ServiceProviderKey).Value is IServiceProvider sp)
-            return sp;
-            
+
+        // Get the tag value as a string (possibly containing a reference ID)
+        var tagValue = activity.Tags.FirstOrDefault(t => t.Key == ServiceProviderKey).Value;
+
+        // We need to use a mechanism to translate from the tag string to the actual service provider
+        // This could involve a static dictionary or some other storage mechanism
+        if (!string.IsNullOrEmpty(tagValue) && ActivityServiceProviderRegistry.TryGetProvider(tagValue, out var serviceProvider))
+        {
+            return serviceProvider;
+        }
+
         return null;
     }
+
+    /// <summary>
+    /// Registry to store service provider references that can be retrieved by string identifiers
+    /// </summary>
+    public static class ActivityServiceProviderRegistry
+    {
+        private static readonly Dictionary<string, IServiceProvider> _providers = new();
+        private static readonly object _lock = new();
+
+        public static string RegisterProvider(IServiceProvider provider)
+        {
+            string id = Guid.NewGuid().ToString("N");
+            lock (_lock)
+            {
+                _providers[id] = provider;
+            }
+            return id;
+        }
+
+        public static bool TryGetProvider(string id, out IServiceProvider? provider)
+        {
+            lock (_lock)
+            {
+                return _providers.TryGetValue(id, out provider);
+            }
+        }
+
+        public static void RemoveProvider(string id)
+        {
+            lock (_lock)
+            {
+                _providers.Remove(id);
+            }
+        }
+    }
+
+
 }

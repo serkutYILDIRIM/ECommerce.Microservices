@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
 using Shared.Library.Telemetry.Baggage;
@@ -20,7 +21,6 @@ public static class PriorityBasedPolicy
         return Policy<T>
             .Handle<HttpRequestException>()
             .Or<TimeoutException>()
-            .OrTransientHttpError()
             .WaitAndRetryAsync(
                 retryCount: GetRetryCount(),
                 sleepDurationProvider: GetDelay,

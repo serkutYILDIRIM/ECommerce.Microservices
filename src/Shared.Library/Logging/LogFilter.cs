@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Core;
@@ -41,7 +42,7 @@ public static class LogFilter
                 evt.Properties.TryGetValue("RequestPath", out var path) && 
                 excludePaths.Any(excluded => path.ToString().Contains(excluded, StringComparison.OrdinalIgnoreCase)));
         }
-        
+
         // Apply category-specific levels
         var categoryLevels = filterConfig?.GetSection("CategoryLevels")?.Get<Dictionary<string, string>>();
         if (categoryLevels != null && categoryLevels.Any())
@@ -50,14 +51,14 @@ public static class LogFilter
             {
                 if (Enum.TryParse<LogEventLevel>(category.Value, true, out var level))
                 {
-                    loggerConfiguration.Filter.ByIncludingOnly(
-                        Matching.WithProperty("SourceContext", sc => 
-                            sc.ToString().StartsWith(category.Key)) && 
-                        Matching.FromSource(category.Key));
+                    loggerConfiguration.Filter.ByIncludingOnly(evt =>
+                        evt.Properties.TryGetValue("SourceContext", out var sourceContext) &&
+                        sourceContext.ToString().StartsWith(category.Key) &&
+                        evt.Level >= level);
                 }
             }
         }
-        
+
         // Apply minimum levels for third-party libraries
         if (filterConfig?.GetSection("OverrideMinimumLevel") != null)
         {

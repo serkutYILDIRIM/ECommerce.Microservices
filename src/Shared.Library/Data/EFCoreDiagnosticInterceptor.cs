@@ -69,7 +69,7 @@ public class EFCoreDiagnosticInterceptor : DbCommandInterceptor
     private void RecordCommand(DbCommand command, CommandExecutedEventData eventData, string executionType)
     {
         var currentActivity = Activity.Current;
-        
+
         if (currentActivity != null)
         {
             // Create command details for tracing
@@ -78,40 +78,45 @@ public class EFCoreDiagnosticInterceptor : DbCommandInterceptor
             var executionTime = eventData.Duration.TotalMilliseconds;
             var database = command.Connection?.Database ?? "unknown";
             var dataSource = command.Connection?.DataSource ?? "unknown";
-            
+
             // Add basic tags
             currentActivity.SetTag("db.type", "ef_core");
             currentActivity.SetTag("db.system", database);
             currentActivity.SetTag("db.command_type", commandType);
             currentActivity.SetTag("db.execution_time_ms", executionTime);
-            
+
             // Add detailed command information
             var tags = new ActivityTagsCollection
-            {
-                { "db.execution_type", executionType },
-                { "db.execution_time_ms", executionTime },
-                { "db.command_type", commandType },
-                { "db.database", database },
-                { "db.data_source", dataSource }
-            };
-            
+        {
+            { "db.execution_type", executionType },
+            { "db.execution_time_ms", executionTime },
+            { "db.command_type", commandType },
+            { "db.database", database },
+            { "db.data_source", dataSource }
+        };
+
             // Add exception information if any
-            if (eventData.Exception != null)
-            {
-                tags.Add("db.error", eventData.Exception.Message);
-                tags.Add("db.error_type", eventData.Exception.GetType().Name);
-                currentActivity.SetStatus(ActivityStatusCode.Error, eventData.Exception.Message);
-            }
-            
+            //if (eventData is CommandErrorEventData errorEventData)
+            //{
+            //    if (errorEventData.Exception != null)
+            //    {
+            //        tags.Add("db.error", errorEventData.Exception.Message);
+            //        tags.Add("db.error_type", errorEventData.Exception.GetType().Name);
+            //        currentActivity.SetStatus(ActivityStatusCode.Error, errorEventData.Exception.Message);
+            //    }
+            //}
+
             // Record full command details as an event
             currentActivity.AddEvent(new ActivityEvent("EFCoreCommandExecuted", tags: tags));
-            
+
             // Log slow queries for investigation
             if (executionTime > 1000) // 1 second threshold for slow queries
             {
-                _logger.LogWarning("Slow database query detected: {ExecutionTime}ms, Command: {CommandType}, Database: {Database}", 
+                _logger.LogWarning("Slow database query detected: {ExecutionTime}ms, Command: {CommandType}, Database: {Database}",
                     executionTime, commandType, database);
             }
         }
     }
+
+
 }

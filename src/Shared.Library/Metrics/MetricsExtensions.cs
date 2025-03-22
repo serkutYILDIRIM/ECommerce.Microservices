@@ -1,5 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Metrics;
+
 
 namespace Shared.Library.Metrics
 {
@@ -41,11 +43,13 @@ namespace Shared.Library.Metrics
         private static IServiceCollection AddPrometheusMetrics(this IServiceCollection services)
         {
             // Add Prometheus exporter endpoint
-            services.AddOpenTelemetryPrometheusScrapingEndpoint();
-            
+            services.AddOpenTelemetry()
+                .WithMetrics(builder => builder
+                    .AddPrometheusExporter());
+
             return services;
         }
-        
+
         /// <summary>
         /// Creates a Counter metric with appropriate key-value units.
         /// Counters track values that only increase (like total requests).

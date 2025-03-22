@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
 namespace Shared.Library.Telemetry.Processors;
@@ -29,26 +30,26 @@ public class ErrorDetailsEnricher : ISpanEnricher
     {
         // Check if this span has error information
         if (span.Status != ActivityStatusCode.Error) return;
-        
+
         try
         {
             // Check for recorded exception events
             var exceptionEvent = span.Events.FirstOrDefault(e => e.Name == "exception");
-            if (exceptionEvent != null)
+            if (!exceptionEvent.Equals(default(ActivityEvent)))
             {
                 // Extract exception details from the event
                 var exceptionTags = exceptionEvent.Tags.ToDictionary(t => t.Key, t => t.Value);
-                
+
                 if (exceptionTags.TryGetValue("exception.type", out var exceptionType))
                 {
                     span.SetTag("error.type", exceptionType);
                 }
-                
+
                 if (exceptionTags.TryGetValue("exception.message", out var exceptionMessage))
                 {
                     span.SetTag("error.message", exceptionMessage);
                 }
-                
+
                 if (exceptionTags.TryGetValue("exception.stacktrace", out var stackTrace))
                 {
                     // Truncate stack trace to avoid excessive data
@@ -56,10 +57,10 @@ public class ErrorDetailsEnricher : ISpanEnricher
                     span.SetTag("error.stack", truncatedStack);
                 }
             }
-            
+
             // Add error context flag
             span.SetTag("error", true);
-            
+
             // Add category of error if identifiable
             if (span.Tags.Any(t => t.Key == "http.status_code"))
             {
@@ -83,21 +84,21 @@ public class ErrorDetailsEnricher : ISpanEnricher
             _logger.LogError(ex, "Error enriching span with error details");
         }
     }
-    
+
     /// <summary>
     /// Truncates a stack trace to avoid excessive telemetry data
     /// </summary>
     private string TruncateStackTrace(string stackTrace)
     {
         const int maxLength = 4000;
-        
+
         if (string.IsNullOrEmpty(stackTrace) || stackTrace.Length <= maxLength)
             return stackTrace;
-            
+
         // Get approximately first N frames
         var lines = stackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
         var framesToKeep = Math.Min(10, lines.Length);
-        
+
         var truncatedStack = string.Join(Environment.NewLine, lines.Take(framesToKeep));
         return truncatedStack + Environment.NewLine + "... [truncated]";
     }

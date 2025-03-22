@@ -99,7 +99,7 @@ public class SamplingMonitorController : ControllerBase
     /// Adds a new sampling rule
     /// </summary>
     [HttpPost("rules")]
-    public IActionResult AddSamplingRule([FromBody] SamplingRule rule)
+    public IActionResult AddSamplingRule([FromBody] SamplingConfigurationRule rule)
     {
         if (string.IsNullOrEmpty(rule.Name))
         {
@@ -112,11 +112,12 @@ public class SamplingMonitorController : ControllerBase
         }
 
         _samplingConfig.Rules.Add(rule);
-        
+
         _logger.LogInformation("Added new sampling rule: {RuleName}", rule.Name);
-        
+
         return CreatedAtAction(nameof(GetSamplingConfig), null);
     }
+
 
     /// <summary>
     /// Deletes a sampling rule

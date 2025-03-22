@@ -262,7 +262,8 @@ public class AsyncContextTestController : ControllerBase
         for (int i = 0; i < 3; i++)
         {
             int taskId = i;
-            tasks.Add(Task.Run(async () =>
+            // Update the Task.Run to explicitly cast the anonymous type to object
+            tasks.Add(Task.Run<object>(async () =>
             {
                 return await AsyncContext.RunAsync(async () =>
                 {
@@ -275,7 +276,7 @@ public class AsyncContextTestController : ControllerBase
                         SpanId = taskActivity?.SpanId.ToString() ?? "None",
                         ParentSpanId = taskActivity?.ParentSpanId.ToString() ?? "None",
                         TestId = taskActivity?.GetTagItem("test.id")?.ToString() ?? "None"
-                    };
+                    } as object;
                 }, capturedContext);
             }));
         }

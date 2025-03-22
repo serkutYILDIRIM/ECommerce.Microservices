@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Shared.Library.Telemetry.Contexts;
 using System.Diagnostics;
 

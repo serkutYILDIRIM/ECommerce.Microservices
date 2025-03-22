@@ -27,8 +27,8 @@ public static class CustomSamplers
         string serviceName)
     {
         // Get sampling configuration from appsettings.json
-        var samplingConfig = configuration.GetSection("OpenTelemetry:Sampling").Get<SamplingConfiguration>() 
-            ?? new SamplingConfiguration();
+        var samplingConfig = configuration.GetSection("OpenTelemetry:Sampling").Get<TelemetrySamplingConfiguration>() 
+            ?? new TelemetrySamplingConfiguration();
         
         // Register the custom composite sampler
         builder.SetSampler(new CompositeCustomSampler(
@@ -176,6 +176,7 @@ public class ConditionalSampler : Sampler
     private readonly Sampler _baseSampler;
     private readonly List<SamplingRule> _rules;
     private readonly ILogger<ConditionalSampler> _logger;
+    private List<SamplingConfigurationRule> rules;
 
     /// <summary>
     /// Creates a sampler that applies rules to determine if a trace should be sampled
@@ -190,6 +191,13 @@ public class ConditionalSampler : Sampler
     {
         _baseSampler = baseSampler;
         _rules = rules;
+        _logger = logger;
+    }
+
+    public ConditionalSampler(Sampler baseSampler, List<SamplingConfigurationRule> rules, ILogger<ConditionalSampler> logger)
+    {
+        _baseSampler = baseSampler;
+        this.rules = rules;
         _logger = logger;
     }
 
@@ -500,7 +508,7 @@ public class CompositeCustomSampler : Sampler
 /// <summary>
 /// Configuration for OpenTelemetry sampling settings
 /// </summary>
-public class SamplingConfiguration
+public class TelemetrySamplingConfiguration: SamplingConfiguration
 {
     /// <summary>
     /// Base sampling rate for normal traffic (0.0-1.0)

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
@@ -28,7 +29,8 @@ public class PerformanceMetrics
     
     // API Performance metrics
     private readonly Dictionary<string, Histogram<double>> _endpointPerformanceHistograms = new();
-    
+    public static readonly string MeterName = "PerformanceMetrics";
+
     private readonly object _lock = new();
 
     public PerformanceMetrics(MeterProvider meterProvider, ILogger<PerformanceMetrics> logger)

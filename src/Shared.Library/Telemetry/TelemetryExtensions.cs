@@ -8,6 +8,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Shared.Library.Logging;
 using Shared.Library.Metrics;
+using Shared.Library.Telemetry.Baggage;
 using Shared.Library.Telemetry.Exporters;
 using Shared.Library.Telemetry.Processors;
 using Shared.Library.Telemetry.Sampling;
@@ -43,118 +44,120 @@ namespace Shared.Library.Telemetry
                 .AddService(serviceName: serviceName, serviceVersion: serviceVersion)
                 .AddTelemetrySdk()
                 .AddEnvironmentVariableDetector(); // Automatically detect environment info
-            
+
             // Register ActivitySource for manual instrumentation
             // This allows creating custom spans in application code
             services.AddSingleton(new ActivitySource(serviceName));
-            
+
             // Register Meter for custom metrics
             // This allows creating custom metrics in application code
             services.AddSingleton(new Meter(serviceName));
-            
+
             // Add and configure OpenTelemetry Tracing
-            services.AddOpenTelemetryTracing(builder =>
-            {
-                builder
-                    // Apply the common resource information to all spans
-                    .SetResourceBuilder(resourceBuilder)
-                    
-                    // Configure OpenTelemetry instrumentation for common libraries
-                    // These auto-instruments provide spans for common operations without manual code
-                    .AddHttpClientInstrumentation(opts =>
-                    {
-                        // Enrich spans with additional context from HTTP calls
-                        opts.EnrichWithHttpRequestMessage = (activity, request) =>
+            services.AddOpenTelemetry()
+                .WithTracing(builder =>
+                {
+                    builder
+                        // Apply the common resource information to all spans
+                        .SetResourceBuilder(resourceBuilder)
+
+                        // Configure OpenTelemetry instrumentation for common libraries
+                        // These auto-instruments provide spans for common operations without manual code
+                        .AddHttpClientInstrumentation(opts =>
                         {
-                            activity.SetTag("http.request.header.x-correlation-id", 
-                                request.Headers.Contains("x-correlation-id") ? 
-                                    request.Headers.GetValues("x-correlation-id").FirstOrDefault() : "");
-                        };
-                        
-                        opts.EnrichWithHttpResponseMessage = (activity, response) =>
-                        {
-                            // Add response size information for performance analysis
-                            if (response.Content?.Headers?.ContentLength != null)
+                            // Enrich spans with additional context from HTTP calls
+                            opts.EnrichWithHttpRequestMessage = (activity, request) =>
                             {
-                                activity.SetTag("http.response.content_length", response.Content.Headers.ContentLength);
-                            }
-                        };
-                        
-                        // Filter out health check endpoints to reduce noise
-                        opts.FilterHttpRequestMessage = (request) =>
+                                activity.SetTag("http.request.header.x-correlation-id",
+                                    request.Headers.Contains("x-correlation-id") ?
+                                        request.Headers.GetValues("x-correlation-id").FirstOrDefault() : "");
+                            };
+
+                            opts.EnrichWithHttpResponseMessage = (activity, response) =>
+                            {
+                                // Add response size information for performance analysis
+                                if (response.Content?.Headers?.ContentLength != null)
+                                {
+                                    activity.SetTag("http.response.content_length", response.Content.Headers.ContentLength);
+                                }
+                            };
+
+                            // Filter out health check endpoints to reduce noise
+                            opts.FilterHttpRequestMessage = (request) =>
+                            {
+                                return !request.RequestUri.PathAndQuery.Contains("/health");
+                            };
+                        })
+                        .AddAspNetCoreInstrumentation(opts =>
                         {
-                            return !request.RequestUri.PathAndQuery.Contains("/health");
-                        };
-                    })
-                    .AddAspNetCoreInstrumentation(opts =>
-                    {
-                        // Record HTTP request body for specific content types when debugging
-                        opts.RecordException = true;
-                        
-                        // Filter out health check and metrics endpoints
-                        opts.Filter = ctx => 
-                            !ctx.Request.Path.StartsWithSegments("/health") && 
-                            !ctx.Request.Path.StartsWithSegments("/metrics");
-                            
-                        // Enrich spans with additional HTTP context
-                        opts.EnrichWithHttpRequest = (activity, request) =>
+                            // Record HTTP request body for specific content types when debugging
+                            opts.RecordException = true;
+
+                            // Filter out health check and metrics endpoints
+                            opts.Filter = ctx =>
+                                !ctx.Request.Path.StartsWithSegments("/health") &&
+                                !ctx.Request.Path.StartsWithSegments("/metrics");
+
+                            // Enrich spans with additional HTTP context
+                            opts.EnrichWithHttpRequest = (activity, request) =>
+                            {
+                                activity.SetTag("http.request.host", request.Host.Value);
+                                activity.SetTag("http.request.path", request.Path);
+                                activity.SetTag("http.request.query", request.QueryString.Value);
+                            };
+                        })
+                        // Auto-instrument EF Core and SQL operations
+                        .AddEntityFrameworkCoreInstrumentation(opts =>
                         {
-                            activity.SetTag("http.request.host", request.Host.Value);
-                            activity.SetTag("http.request.path", request.Path);
-                            activity.SetTag("http.request.query", request.QueryString.Value);
-                        };
-                    })
-                    // Auto-instrument EF Core and SQL operations
-                    .AddEntityFrameworkCoreInstrumentation(opts =>
-                    {
-                        // Set to true for development to see full SQL queries
-                        opts.SetDbStatementForText = true;
-                    })
-                    // Add exporters - how telemetry data gets sent
-                    .AddOtlpExporter(opts =>
-                    {
-                        // Get OTLP endpoint from configuration or use default
-                        opts.Endpoint = new Uri(configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
-                    })
-                    // Optional console exporter for debugging
-                    .AddConsoleExporter()
-                    // Sample traces to control volume
-                    .AddCustomSamplers(configuration, serviceName);
-                
-                // Add any custom processors for spans
-                // These processors can modify spans before they're exported
-                builder.AddCustomSpanProcessors();
-            });
-            
+                            // Set to true for development to see full SQL queries
+                            opts.SetDbStatementForText = true;
+                        })
+                        // Add exporters - how telemetry data gets sent
+                        .AddOtlpExporter(opts =>
+                        {
+                            // Get OTLP endpoint from configuration or use default
+                            opts.Endpoint = new Uri(configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
+                        })
+                        // Optional console exporter for debugging
+                        .AddConsoleExporter()
+                        // Sample traces to control volume
+                        .AddCustomSamplers(configuration, serviceName);
+
+                    // Add any custom processors for spans
+                    // These processors can modify spans before they're exported
+                    builder.AddCustomSpanProcessors();
+                });
+
             // Add and configure OpenTelemetry Metrics
-            services.AddOpenTelemetryMetrics(builder =>
-            {
-                builder
-                    // Apply the common resource information to all metrics
-                    .SetResourceBuilder(resourceBuilder)
-                    
-                    // Configure OpenTelemetry instrumentation for auto metrics
-                    .AddHttpClientInstrumentation()
-                    .AddAspNetCoreInstrumentation()
-                    
-                    // Add .NET runtime metrics
-                    .AddRuntimeInstrumentation()
-                    .AddProcessInstrumentation()
-                    
-                    // Custom business metrics
-                    .AddMeter(serviceName)
-                    // Common performance metrics defined in shared library
-                    .AddMeter(PerformanceMetrics.MeterName)
-                    
-                    // Add exporters for metrics
-                    .AddOtlpExporter(opts =>
-                    {
-                        // Get OTLP endpoint from configuration or use default
-                        opts.Endpoint = new Uri(configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
-                    })
-                    .AddPrometheusExporter();
-            });
-            
+            services.AddOpenTelemetry()
+                .WithMetrics(builder =>
+                {
+                    builder
+                        // Apply the common resource information to all metrics
+                        .SetResourceBuilder(resourceBuilder)
+
+                        // Configure OpenTelemetry instrumentation for auto metrics
+                        .AddHttpClientInstrumentation()
+                        .AddAspNetCoreInstrumentation()
+
+                        // Add .NET runtime metrics
+                        .AddRuntimeInstrumentation()
+                        .AddProcessInstrumentation()
+
+                        // Custom business metrics
+                        .AddMeter(serviceName)
+                        // Common performance metrics defined in shared library
+                        .AddMeter(PerformanceMetrics.MeterName)
+
+                        // Add exporters for metrics
+                        .AddOtlpExporter(opts =>
+                        {
+                            // Get OTLP endpoint from configuration or use default
+                            opts.Endpoint = new Uri(configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
+                        })
+                        .AddPrometheusExporter();
+                });
+
             // Configure OpenTelemetry logging integration
             services.AddLogging(loggingBuilder =>
             {
@@ -163,25 +166,36 @@ namespace Shared.Library.Telemetry
                     options
                         // Apply the common resource information to all logs
                         .SetResourceBuilder(resourceBuilder)
-                        
+
                         // Add exporters for logs
                         .AddOtlpExporter(opts =>
                         {
                             // Get OTLP endpoint from configuration or use default
                             opts.Endpoint = new Uri(configuration.GetValue<string>("OpenTelemetry:OtlpEndpoint") ?? "http://localhost:4317");
                         });
-                        
+
                     // Add custom log processors if needed
                     // options.AddProcessor(...);
                 });
             });
-            
+
             // Register BaggageManager to manage contextual information
             services.AddSingleton<BaggageManager>();
-            
+
             return services;
         }
-        
+
         // Additional extension methods...
+    }
+
+    public static class CustomSpanProcessorExtensions
+    {
+        public static TracerProviderBuilder AddCustomSpanProcessors(this TracerProviderBuilder builder)
+        {
+            // Add custom span processors here
+            // Example: builder.AddProcessor(new CustomSpanProcessor());
+
+            return builder;
+        }
     }
 }

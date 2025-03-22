@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using System.Diagnostics;
 using System.Text.Json;
@@ -49,8 +50,8 @@ public class CustomSpanExporter : BaseExporter<Activity>
                     ParentSpanId = span.ParentSpanId.ToString(),
                     Name = span.DisplayName,
                     Kind = span.Kind.ToString(),
-                    StartTime = span.StartTimeUtc,
-                    EndTime = span.StartTimeUtc + span.Duration,
+                    StartTime = span.StartTimeUtc.Date, // Convert DateTimeOffset to DateTime
+                    EndTime = (span.StartTimeUtc + span.Duration).Date, // Correct way to calculate end time
                     Duration = span.Duration.TotalMilliseconds,
                     Status = span.Status.ToString(),
                     Tags = ExtractTags(span),
@@ -113,50 +114,59 @@ public class CustomSpanExporter : BaseExporter<Activity>
     private List<SpanEvent> ExtractEvents(Activity span)
     {
         var events = new List<SpanEvent>();
-        
+
         foreach (var activityEvent in span.Events)
         {
             var eventTags = new Dictionary<string, object>();
-            
+
             foreach (var tag in activityEvent.Tags)
             {
                 eventTags[tag.Key] = tag.Value?.ToString() ?? string.Empty;
             }
-            
+
             events.Add(new SpanEvent
             {
                 Name = activityEvent.Name,
-                Timestamp = activityEvent.Timestamp,
+                Timestamp = activityEvent.Timestamp.DateTime, // Convert DateTimeOffset to DateTime
                 Tags = eventTags
             });
         }
-        
+
         return events;
     }
 
     /// <summary>
     /// Get service name from span attributes or baggage
     /// </summary>
+    /// <summary>
+    /// Get service name from span attributes or baggage
+    /// </summary>
     private string GetServiceName(Activity span)
     {
+        // Convert span.Tags to a dictionary
+        var tagsDictionary = span.Tags.ToDictionary(t => t.Key, t => t.Value);
+
         // Try to get service name from span attributes
-        var serviceNameTag = span.Tags.FirstOrDefault(t => 
-            t.Key == "service.name" || 
-            t.Key == "service" || 
-            t.Key == "component");
-            
-        if (!string.IsNullOrEmpty(serviceNameTag.Value))
+        if (tagsDictionary.TryGetValue("service.name", out var serviceNameTag) ||
+            tagsDictionary.TryGetValue("service", out serviceNameTag) ||
+            tagsDictionary.TryGetValue("component", out serviceNameTag))
         {
-            return serviceNameTag.Value;
+            if (!string.IsNullOrEmpty(serviceNameTag))
+            {
+                return serviceNameTag;
+            }
         }
-        
+
+        // Convert span.Baggage to a dictionary
+        var baggageDictionary = span.Baggage.ToDictionary(b => b.Key, b => b.Value);
+
         // Try to get from baggage
-        if (span.Baggage.TryGetValue("service.name", out var serviceName) && 
+        if (baggageDictionary.TryGetValue("service.name", out var serviceName) &&
             !string.IsNullOrEmpty(serviceName))
         {
             return serviceName;
         }
-        
+
         // Fallback to default
         return _options.DefaultServiceName ?? "unknown-service";
     }

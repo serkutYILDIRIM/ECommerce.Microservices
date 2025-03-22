@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
 namespace Shared.Library.Telemetry.Processors;
@@ -20,7 +21,7 @@ public class DatabaseOperationEnricher : ISpanEnricher
     public void EnrichSpanAtStart(Activity span)
     {
         if (!IsDatabaseOperation(span)) return;
-        
+
         try
         {
             // Add DB type classification
@@ -33,14 +34,14 @@ public class DatabaseOperationEnricher : ISpanEnricher
             {
                 span.SetTag("db.system", "entityframework");
                 span.SetTag("db.technology", "Entity Framework Core");
-                
+
                 // Extract entity information from EF Core spans
                 if (span.DisplayName.Contains("SaveChanges"))
                 {
                     span.SetTag("db.operation", "write");
                     span.SetTag("db.operation.type", "save");
                 }
-                else if (span.DisplayName.Contains("ExecuteReader") || 
+                else if (span.DisplayName.Contains("ExecuteReader") ||
                          span.DisplayName.Contains("Query"))
                 {
                     span.SetTag("db.operation", "read");
@@ -56,28 +57,28 @@ public class DatabaseOperationEnricher : ISpanEnricher
             // Set operation type if available in tags
             if (span.GetTagItem("db.operation") is null)
             {
-                if (span.OperationName.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) || 
+                if (span.OperationName.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) ||
                     span.DisplayName.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
                 {
                     span.SetTag("db.operation", "read");
                 }
-                else if (span.OperationName.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase) || 
+                else if (span.OperationName.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase) ||
                          span.DisplayName.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
                 {
                     span.SetTag("db.operation", "write");
                 }
-                else if (span.OperationName.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase) || 
+                else if (span.OperationName.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase) ||
                          span.DisplayName.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
                 {
                     span.SetTag("db.operation", "write");
                 }
-                else if (span.OperationName.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase) || 
+                else if (span.OperationName.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase) ||
                          span.DisplayName.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
                 {
                     span.SetTag("db.operation", "write");
                 }
             }
-            
+
             // Add span kind if not set
             if (span.Kind == ActivityKind.Internal)
             {
@@ -96,19 +97,19 @@ public class DatabaseOperationEnricher : ISpanEnricher
     public void EnrichSpanAtEnd(Activity span)
     {
         if (!IsDatabaseOperation(span)) return;
-        
+
         try
         {
             // Add duration metric explicitly
-            var durationMs = (span.Stop - span.Start).TotalMilliseconds;
+            var durationMs = span.Duration.TotalMilliseconds;
             span.SetTag("db.operation.duration_ms", durationMs);
-            
+
             // Flag slow database operations
             if (durationMs > 100)
             {
                 span.SetTag("db.operation.slow", true);
             }
-            
+
             // Add result information if available
             if (span.GetTagItem("db.result.rows") != null)
             {
@@ -118,12 +119,12 @@ public class DatabaseOperationEnricher : ISpanEnricher
             {
                 span.SetTag("db.result.rows", rowsAffected);
             }
-            
+
             // Handle errors
             if (span.Status == ActivityStatusCode.Error)
             {
                 span.SetTag("db.operation.success", false);
-                
+
                 // Extract and clean error information
                 if (span.GetTagItem("error.type") is string errorType)
                 {
@@ -144,7 +145,7 @@ public class DatabaseOperationEnricher : ISpanEnricher
             _logger.LogError(ex, "Error enriching database operation span at end");
         }
     }
-    
+
     /// <summary>
     /// Determines if a span represents a database operation
     /// </summary>
@@ -152,29 +153,29 @@ public class DatabaseOperationEnricher : ISpanEnricher
     {
         // Check for known database source names
         var sourceName = span.Source?.Name ?? string.Empty;
-        if (sourceName.Contains("System.Data") || 
+        if (sourceName.Contains("System.Data") ||
             sourceName.Contains("Microsoft.EntityFrameworkCore") ||
             sourceName.Contains("Npgsql"))
         {
             return true;
         }
-        
+
         // Check for database-related tags
-        if (span.GetTagItem("db.system") != null || 
+        if (span.GetTagItem("db.system") != null ||
             span.GetTagItem("db.name") != null ||
             span.GetTagItem("db.statement") != null)
         {
             return true;
         }
-        
+
         // Check operation names
         var displayName = span.DisplayName.ToLowerInvariant();
-        return displayName.Contains("sql") || 
-               displayName.Contains("query") || 
+        return displayName.Contains("sql") ||
+               displayName.Contains("query") ||
                displayName.Contains("database") ||
                displayName.Contains("savechanges");
     }
-    
+
     /// <summary>
     /// Checks if a span comes from a specific database provider
     /// </summary>

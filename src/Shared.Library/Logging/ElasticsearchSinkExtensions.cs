@@ -1,6 +1,10 @@
+using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Configuration;
+using Serilog.Events;
+using Serilog.Formatting;
 using Serilog.Sinks.Elasticsearch;
+using System.Collections.Specialized;
 using System.Reflection;
 
 namespace Shared.Library.Logging;
@@ -69,13 +73,17 @@ public static class ElasticsearchSinkExtensions
         {
             options.IndexFormat = indexName;
         }
-        
+
         // Add authorization if configured
         var apiKey = elasticsearchSection["ApiKey"];
         if (!string.IsNullOrEmpty(apiKey))
         {
-            options.ModifyConnectionSettings = x => x.ApiKey(apiKey);
+            options.ModifyConnectionSettings = x => x.GlobalHeaders(new NameValueCollection
+    {
+        { "Authorization", $"ApiKey {apiKey}" }
+    });
         }
+
 
         // Add Elasticsearch sink
         return loggerConfiguration.WriteTo.Elasticsearch(options);
@@ -85,7 +93,8 @@ public static class ElasticsearchSinkExtensions
 /// <summary>
 /// Custom formatter for Elasticsearch documents
 /// </summary>
-public class ElasticsearchCustomFormatter : IElasticsearchCustomFormatter
+
+public class ElasticsearchCustomFormatter : ITextFormatter
 {
     private readonly string _serviceName;
     private readonly string _serviceVersion;
@@ -98,16 +107,22 @@ public class ElasticsearchCustomFormatter : IElasticsearchCustomFormatter
         _environment = environment;
     }
 
-    public Dictionary<string, object> Format(LogEvent logEvent, IFormatProvider? formatProvider)
+    public void Format(LogEvent logEvent, TextWriter output)
+    {
+        var formattedLog = FormatToDictionary(logEvent, null);
+        foreach (var kvp in formattedLog)
+        {
+            output.WriteLine($"{kvp.Key}: {kvp.Value}");
+        }
+    }
+
+    public Dictionary<string, object> FormatToDictionary(LogEvent logEvent, IFormatProvider? formatProvider)
     {
         var result = new Dictionary<string, object>
         {
-            // Add standard top-level fields that help with ECS compatibility
             ["@timestamp"] = logEvent.Timestamp.ToUniversalTime().ToString("o"),
             ["level"] = logEvent.Level.ToString(),
             ["message"] = logEvent.RenderMessage(formatProvider),
-            
-            // Add service context fields
             ["service"] = new Dictionary<string, object>
             {
                 ["name"] = _serviceName,
@@ -116,7 +131,6 @@ public class ElasticsearchCustomFormatter : IElasticsearchCustomFormatter
             }
         };
 
-        // Add exception details if present
         if (logEvent.Exception != null)
         {
             result["error"] = new Dictionary<string, object>
@@ -128,12 +142,10 @@ public class ElasticsearchCustomFormatter : IElasticsearchCustomFormatter
             };
         }
 
-        // Add all properties from the log event
         result["properties"] = logEvent.Properties.ToDictionary(
-            kv => kv.Key, 
+            kv => kv.Key,
             kv => kv.Value.ToString());
 
-        // Add common properties as top-level fields for better search
         foreach (var prop in logEvent.Properties)
         {
             switch (prop.Key)
@@ -153,4 +165,6 @@ public class ElasticsearchCustomFormatter : IElasticsearchCustomFormatter
 
         return result;
     }
+
 }
+

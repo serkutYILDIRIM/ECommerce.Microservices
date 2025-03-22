@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Shared.Library.Telemetry.Baggage;
 
 namespace Shared.Library.Services;
@@ -187,9 +189,9 @@ public static class BusinessContextEnricherExtensions
     /// </summary>
     public static IServiceCollection AddBusinessContextEnricher(this IServiceCollection services)
     {
-        services.AddBaggageManager();
+        services.AddScoped<BaggageManager>();
         services.AddScoped<BusinessContextEnricher>();
-        
+
         return services;
     }
 }

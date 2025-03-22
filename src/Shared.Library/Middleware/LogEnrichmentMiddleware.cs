@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Serilog.Context;
 using System.Diagnostics;
 using System.Text;
@@ -80,9 +82,9 @@ public class LogEnrichmentMiddleware
                 if (activity != null)
                 {
                     activity.SetStatus(ActivityStatusCode.Error, ex.Message);
-                    activity.RecordException(ex);
+                    activity.AddTag("exception", ex.ToString());
                 }
-                
+
                 // Log the exception with all context
                 _logger.LogError(ex, "Request failed: {Method} {Path}", 
                     context.Request.Method, context.Request.Path);

@@ -1,5 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
+using System;
+using System.Diagnostics;
+using OpenTelemetry;
 
 namespace Shared.Library.Telemetry.Exporters;
 
@@ -18,16 +22,16 @@ public static class CustomExporterExtensions
     {
         // Create default options
         var options = CustomExporterOptions.Default(serviceName);
-        
+
         // Apply any custom configuration
         configure?.Invoke(options);
-        
+
         // Register options and storage
         builder.AddCustomExporter(options);
-        
+
         return builder;
     }
-    
+
     /// <summary>
     /// Adds the custom span exporter with the specified options
     /// </summary>
@@ -40,20 +44,20 @@ public static class CustomExporterExtensions
         if (services != null)
         {
             services.AddSingleton(options);
-            services.AddSingleton<TelemetryStorage>(sp => 
+            services.AddSingleton<TelemetryStorage>(sp =>
                 new TelemetryStorage(
-                    sp.GetRequiredService<ILogger<TelemetryStorage>>(), 
+                    sp.GetRequiredService<ILogger<TelemetryStorage>>(),
                     options.MaxStoredSpans));
-            
+
             services.AddSingleton<CustomSpanExporter>();
         }
-        
+
         // Add the exporter to the trace provider
-        builder.AddProcessor(sp => sp.GetRequiredService<CustomSpanExporter>());
-        
+        builder.AddProcessor(sp => new BatchActivityExportProcessor(sp.GetRequiredService<CustomSpanExporter>()));
+
         return builder;
     }
-    
+
     /// <summary>
     /// Configures and registers services needed for the custom exporter
     /// </summary>
@@ -64,19 +68,19 @@ public static class CustomExporterExtensions
     {
         // Create default options
         var options = CustomExporterOptions.Default(serviceName);
-        
+
         // Apply any custom configuration
         configure?.Invoke(options);
-        
+
         // Register services
         services.AddSingleton(options);
-        services.AddSingleton<TelemetryStorage>(sp => 
+        services.AddSingleton<TelemetryStorage>(sp =>
             new TelemetryStorage(
-                sp.GetRequiredService<ILogger<TelemetryStorage>>(), 
+                sp.GetRequiredService<ILogger<TelemetryStorage>>(),
                 options.MaxStoredSpans));
-        
+
         services.AddSingleton<CustomSpanExporter>();
-        
+
         return services;
     }
 }
