@@ -6,7 +6,13 @@ using Shared.Library.Telemetry;
 
 namespace OrderProcessingService.Services;
 
-public class ProductCatalogService
+public interface IProductCatalogService
+{
+    Task<ProductDto?> GetProductAsync(int productId);
+    Task<bool> UpdateProductStockAsync(int productId, int quantityToReduce);
+}
+
+public class ProductCatalogService : IProductCatalogService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ProductCatalogService> _logger;
@@ -51,79 +57,50 @@ public class ProductCatalogService
             else
             {
                 activity?.SetTag("product.found", false);
+                _logger.LogWarning("Product {ProductId} not found", productId);
             }
             
             return product;
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            activity?.RecordException(ex);
-            _logger.LogError(ex, "Error fetching product with ID {ProductId}", productId);
+            _logger.LogError(ex, "Error getting product {ProductId}", productId);
             return null;
         }
     }
 
     public async Task<bool> UpdateProductStockAsync(int productId, int quantityToReduce)
     {
-        using var activity = TelemetryConfig.ActivitySource.StartActivity("ProductCatalogService.UpdateProductStock");
+        using var activity = TelemetryConfig.ActivitySource.StartActivity("ProductCatalogService.UpdateStock");
         activity?.SetTag("product.id", productId);
-        activity?.SetTag("quantity.reduce", quantityToReduce);
+        activity?.SetTag("product.quantity_change", -quantityToReduce);
         
         try
         {
-            // First get the product
-            activity?.AddEvent(new ActivityEvent("FetchingProduct"));
-            var getRequest = new HttpRequestMessage(HttpMethod.Get, $"/products/{productId}");
-            _propagator.EnrichRequest(getRequest, activity);
+            var request = new HttpRequestMessage(HttpMethod.Post, $"/products/{productId}/reducestock");
+            _propagator.EnrichRequest(request, activity);
             
-            var getResponse = await _httpClient.SendAsync(getRequest);
-            if (!getResponse.IsSuccessStatusCode)
+            // Create the payload
+            var payload = new { quantity = quantityToReduce };
+            request.Content = JsonContent.Create(payload);
+            
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
             {
-                activity?.SetStatus(ActivityStatusCode.Error, $"HTTP status code: {getResponse.StatusCode}");
+                activity?.SetStatus(ActivityStatusCode.Error, $"HTTP status code: {response.StatusCode}");
+                _logger.LogWarning("Failed to update stock for product {ProductId}: HTTP status code {StatusCode}", 
+                    productId, response.StatusCode);
                 return false;
             }
             
-            var product = await getResponse.Content.ReadFromJsonAsync<ProductDto>();
-            
-            if (product == null)
-            {
-                activity?.SetTag("product.found", false);
-                return false;
-            }
-            
-            activity?.SetTag("product.found", true);
-            activity?.SetTag("product.current_stock", product.StockQuantity);
-
-            // Update stock quantity
-            product.StockQuantity -= quantityToReduce;
-            if (product.StockQuantity < 0)
-            {
-                activity?.SetTag("product.sufficient_stock", false);
-                return false;
-            }
-            
-            activity?.SetTag("product.new_stock", product.StockQuantity);
-            activity?.SetTag("product.sufficient_stock", true);
-            activity?.AddEvent(new ActivityEvent("UpdatingProduct"));
-
-            // Send PUT request to update product
-            var putRequest = new HttpRequestMessage(HttpMethod.Put, $"/products/{productId}")
-            {
-                Content = JsonContent.Create(product)
-            };
-            _propagator.EnrichRequest(putRequest, activity);
-            
-            var response = await _httpClient.SendAsync(putRequest);
-            
-            var success = response.IsSuccessStatusCode;
-            activity?.SetTag("update.success", success);
-            return success;
+            _logger.LogInformation("Successfully updated stock for product {ProductId}, reduced by {Quantity}", 
+                productId, quantityToReduce);
+            return true;
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            activity?.RecordException(ex);
             _logger.LogError(ex, "Error updating stock for product {ProductId}", productId);
             return false;
         }
