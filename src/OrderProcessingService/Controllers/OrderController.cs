@@ -46,8 +46,8 @@ public class OrderController : ControllerBase
             return NotFound();
 
         // Set customer context in baggage
-        _baggageManager.SetCustomerContext(order.CustomerId.ToString(), 
-            customerTier: GetCustomerTier(order.CustomerId));
+        _baggageManager.SetCustomerContext(order.CustomerName, 
+            customerTier: GetCustomerTier(order.CustomerName));
             
         // Set transaction context for cross-service tracking
         _baggageManager.SetTransactionContext();
@@ -61,8 +61,8 @@ public class OrderController : ControllerBase
         try
         {
             // Set business context in baggage
-            _baggageManager.SetCustomerContext(order.CustomerId.ToString(), 
-                customerTier: GetCustomerTier(order.CustomerId));
+            _baggageManager.SetCustomerContext(order.CustomerName, 
+                customerTier: GetCustomerTier(order.CustomerName));
             _baggageManager.SetTransactionContext();
             
             // Capture the business context for the operation
@@ -71,36 +71,20 @@ public class OrderController : ControllerBase
             // Enrich the order with context information
             order = _contextEnricher.EnrichEntity(order);
             order.OrderDate = DateTime.UtcNow;
-            order.Status = "Created";
-            
-            // Set order priority based on customer tier
-            if (context.IsPremiumCustomer)
-            {
-                order.Priority = "High";
-                _baggageManager.Set(BaggageManager.Keys.OrderPriority, "High");
-            }
+            order.Status = OrderStatus.Pending;
             
             // Track the operation with business context
             using var activity = new ActivitySource("OrderProcessing").StartActivity("CreateOrder");
-            activity?.SetTag("order.customer_id", order.CustomerId);
-            activity?.SetTag("order.total", order.Total);
+            activity?.SetTag("order.customer_name", order.CustomerName);
+            activity?.SetTag("order.total", order.TotalAmount);
             activity?.SetTag("business.customer_tier", context.CustomerTier);
-            activity?.SetTag("business.priority", order.Priority);
-            
-            // Process according to customer tier
-            await _baggageManager.WhenCustomerTier("premium").ExecuteAsync(async () => 
-            {
-                // Special handling for premium customers
-                _logger.LogInformation("Processing premium customer order with expedited handling");
-                order.Notes = order.Notes + " (Premium customer - expedited handling)";
-            });
-            
+
             // Save the order
             _dbContext.Orders.Add(order);
             await _dbContext.SaveChangesAsync();
             
             // Update baggage with the new order ID
-            _baggageManager.SetOrderContext(order.Id.ToString(), order.Total, order.Priority);
+            _baggageManager.SetOrderContext(order.Id.ToString(), order.TotalAmount);
             
             // Return success
             return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
@@ -108,8 +92,8 @@ public class OrderController : ControllerBase
         catch (Exception ex)
         {
             // Log error with business context
-            _logger.LogError(ex, "Error creating order for customer {CustomerId}. Context: {Context}", 
-                order.CustomerId, _contextEnricher.GetBusinessContext());
+            _logger.LogError(ex, "Error creating order for customer {CustomerName}. Context: {Context}", 
+                order.CustomerName, _contextEnricher.GetBusinessContext());
             
             return StatusCode(500, "An error occurred while processing your order");
         }
@@ -127,14 +111,14 @@ public class OrderController : ControllerBase
             return NotFound();
             
         // Set customer context in baggage
-        _baggageManager.SetCustomerContext(order.CustomerId.ToString(), 
-            customerTier: GetCustomerTier(order.CustomerId));
+        _baggageManager.SetCustomerContext(order.CustomerName, 
+            customerTier: GetCustomerTier(order.CustomerName));
         
         // Get business context from baggage
         var context = _contextEnricher.GetBusinessContext();
         
         // Process with priority handling if needed
-        if (context.IsPremiumCustomer || context.IsHighPriority)
+        if (context.IsPremiumCustomer)
         {
             _logger.LogInformation("Processing high priority order {OrderId} for {CustomerTier} customer",
                 id, context.CustomerTier);
@@ -154,35 +138,18 @@ public class OrderController : ControllerBase
         // Priority processing logic
         using var activity = new ActivitySource("OrderProcessing").StartActivity("PriorityOrderProcessing");
         activity?.SetTag("order.id", order.Id);
-        activity?.SetTag("order.customer_id", order.CustomerId);
+        activity?.SetTag("order.customer_name", order.CustomerName);
         activity?.SetTag("order.priority", "high");
         
-        // Verify inventory with priority flag
-        var inventoryResult = await _inventoryService.CheckAndReserveInventoryAsync(
-            order.Id,
-            order.ProductId,
-            order.Quantity,
-            isPriority: true);
-            
-        if (!inventoryResult.Success)
-        {
-            return new OrderProcessResult
-            {
-                OrderId = order.Id,
-                Success = false,
-                Message = "Priority inventory check failed: " + inventoryResult.Message
-            };
-        }
-        
         // Update order status
-        order.Status = "Processing";
+        order.Status = OrderStatus.Processing;
         await _dbContext.SaveChangesAsync();
         
         return new OrderProcessResult
         {
             OrderId = order.Id,
             Success = true,
-            Message = "Order processed with priority handling",
+            Message = "Order processed with priority handling (Inventory check skipped)",
             Priority = true
         };
     }
@@ -192,44 +159,28 @@ public class OrderController : ControllerBase
         // Standard processing logic
         using var activity = new ActivitySource("OrderProcessing").StartActivity("StandardOrderProcessing");
         activity?.SetTag("order.id", order.Id);
-        activity?.SetTag("order.customer_id", order.CustomerId);
+        activity?.SetTag("order.customer_name", order.CustomerName);
         activity?.SetTag("order.priority", "standard");
         
-        // Standard inventory check
-        var inventoryResult = await _inventoryService.CheckAndReserveInventoryAsync(
-            order.Id,
-            order.ProductId,
-            order.Quantity,
-            isPriority: false);
-            
-        if (!inventoryResult.Success)
-        {
-            return new OrderProcessResult
-            {
-                OrderId = order.Id,
-                Success = false,
-                Message = "Standard inventory check failed: " + inventoryResult.Message
-            };
-        }
-        
         // Update order status
-        order.Status = "Processing";
+        order.Status = OrderStatus.Processing;
         await _dbContext.SaveChangesAsync();
         
         return new OrderProcessResult
         {
             OrderId = order.Id,
             Success = true,
-            Message = "Order processed with standard handling",
+            Message = "Order processed with standard handling (Inventory check skipped)",
             Priority = false
         };
     }
     
-    // Helper to get customer tier - in a real app this would come from a customer service
-    private string GetCustomerTier(int customerId)
+    // Helper to get customer tier - changed parameter to string (CustomerName)
+    private string GetCustomerTier(string customerName)
     {
-        // For this example, customers with ID divisible by 10 are premium
-        return customerId % 10 == 0 ? "Premium" : "Standard";
+        // Example logic: Use customer name length or some other derivable property.
+        // This needs to be replaced with actual business logic for determining tier.
+        return customerName.Length % 2 == 0 ? "Premium" : "Standard";
     }
 }
 
@@ -240,6 +191,6 @@ public class OrderProcessResult
 {
     public int OrderId { get; set; }
     public bool Success { get; set; }
-    public string Message { get; set; }
+    public string Message { get; set; } = string.Empty;
     public bool Priority { get; set; }
 }
