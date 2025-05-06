@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using OrderProcessingService.Data;
 using OrderProcessingService.Models;
 using OrderProcessingService.Services;
@@ -86,6 +87,9 @@ public class OrderController : ControllerBase
             // Update baggage with the new order ID
             _baggageManager.SetOrderContext(order.Id.ToString(), order.TotalAmount);
             
+            // Log information
+            _logger.LogInformation("Order created successfully for customer {CustomerName}", order.CustomerName);
+            
             // Return success
             return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
         }
@@ -128,6 +132,9 @@ public class OrderController : ControllerBase
         }
         else
         {
+            _logger.LogInformation("Processing standard order {OrderId} for {CustomerTier} customer",
+                id, context.CustomerTier);
+                
             // Standard processing path
             return await ProcessOrderStandard(order);
         }

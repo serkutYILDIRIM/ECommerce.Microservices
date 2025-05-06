@@ -77,7 +77,7 @@ var app = builder.Build();
 
 // Enable scope creation for metrics
 // This allows static access to the service provider for observableGauges
-public static IServiceScope CreateScope() => 
+static IServiceScope CreateScope() => 
     app.Services.CreateScope();
 
 // Configure the HTTP request pipeline.
