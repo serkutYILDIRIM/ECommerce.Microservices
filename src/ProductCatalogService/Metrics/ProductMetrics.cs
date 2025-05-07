@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using ProductCatalogService.Models;
 using Shared.Library.Metrics;
+using ProductCatalogService.Data; // Add missing reference for ProductDbContext
 
 namespace ProductCatalogService.Metrics;
 
@@ -16,11 +17,13 @@ public class ProductMetrics
     private readonly Counter<long> _productDeletionsCounter;
     private readonly Histogram<double> _searchDurationHistogram;
     private readonly ILogger<ProductMetrics> _logger;
+    private readonly IServiceProvider _serviceProvider;
 
-    public ProductMetrics(MeterProvider meterProvider, ILogger<ProductMetrics> logger)
+    public ProductMetrics(MeterProvider meterProvider, ILogger<ProductMetrics> logger, IServiceProvider serviceProvider)
     {
         _meter = meterProvider.AppMeter;
         _logger = logger;
+        _serviceProvider = serviceProvider;
 
         // Create counters
         _productViewsCounter = _meter.CreateCounter<long>(
@@ -89,11 +92,28 @@ public class ProductMetrics
             new KeyValuePair<string, object?>("search.result_count", resultCount));
     }
 
+    public void RecordProductPriceChange(Product product, decimal oldPrice)
+    {
+        double priceChangePercent = oldPrice == 0 ? 0 : 
+            Math.Abs(Convert.ToDouble((product.Price - oldPrice) / oldPrice) * 100);
+
+        _meter.CreateHistogram<double>(
+            name: "business.product.price_changes",
+            unit: "{percent}",
+            description: "Percentage changes in product prices")
+            .Record(priceChangePercent, 
+                new KeyValuePair<string, object?>("product.id", product.Id),
+                new KeyValuePair<string, object?>("product.name", product.Name),
+                new KeyValuePair<string, object?>("product.category", product.Category),
+                new KeyValuePair<string, object?>("price.old", Convert.ToDouble(oldPrice)),
+                new KeyValuePair<string, object?>("price.new", Convert.ToDouble(product.Price)));
+    }
+
     private int GetTotalProductCount()
     {
         try
         {
-            using var scope = Program.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
             return dbContext.Products.Count();
         }

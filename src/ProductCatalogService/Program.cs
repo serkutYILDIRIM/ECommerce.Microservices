@@ -76,6 +76,10 @@ builder.Services.AddRequestContextLogger();
 
 var app = builder.Build();
 
+// Create logger instance
+var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+var logger = loggerFactory.CreateLogger("Program");
+
 // Enable scope creation for metrics
 // This allows static access to the service provider for observableGauges
 IServiceScope CreateScope() => app.Services.CreateScope();
