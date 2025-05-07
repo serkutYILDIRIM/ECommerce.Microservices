@@ -111,5 +111,17 @@ namespace OrderProcessingService.Metrics
             _meter.Dispose();
             GC.SuppressFinalize(this); // Added standard Dispose pattern
         }
+
+        public void RecordOrderCreation(Order order)
+        {
+            // Logic to record order creation metrics
+            _logger.LogInformation("Order created: {OrderId}", order.Id);
+        }
+
+        public void RecordOrderProcessingDuration(Order order, TimeSpan duration)
+        {
+            // Logic to record order processing duration metrics
+            _logger.LogInformation("Order {OrderId} processed in {Duration}ms", order.Id, duration.TotalMilliseconds);
+        }
     }
 }

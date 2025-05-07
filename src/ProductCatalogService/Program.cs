@@ -8,6 +8,7 @@ using Shared.Library.Logging;
 using Shared.Library.Controllers;
 using System.Diagnostics;
 using ProductCatalogService.Metrics; // Ensure ProductMetrics is properly referenced
+using Shared.Library.Data; // Add missing reference for AddEFCoreTracing
 
 var builder = WebApplication.CreateBuilder(args);
 
