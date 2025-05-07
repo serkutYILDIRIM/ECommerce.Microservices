@@ -7,6 +7,7 @@ using Shared.Library.Middleware;
 using Shared.Library.Logging;
 using Shared.Library.Controllers;
 using System.Diagnostics;
+using ProductCatalogService.Metrics; // Ensure ProductMetrics is properly referenced
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,8 +78,7 @@ var app = builder.Build();
 
 // Enable scope creation for metrics
 // This allows static access to the service provider for observableGauges
-static IServiceScope CreateScope() => 
-    app.Services.CreateScope();
+IServiceScope CreateScope() => app.Services.CreateScope();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
