@@ -416,7 +416,7 @@ app.MapPost("/orders", async (
         // Record processing duration
         if (order.Id > 0) // Only record if the order was created in the database
         {
-            metrics.RecordOrderProcessingDuration(stopwatch.ElapsedMilliseconds, order, success);
+            metrics.RecordOrderProcessingDuration(order, TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds));
         }
     }
 })

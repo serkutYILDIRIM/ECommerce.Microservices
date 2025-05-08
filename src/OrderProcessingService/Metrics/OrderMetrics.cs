@@ -123,5 +123,11 @@ namespace OrderProcessingService.Metrics
             // Logic to record order processing duration metrics
             _logger.LogInformation("Order {OrderId} processed in {Duration}ms", order.Id, duration.TotalMilliseconds);
         }
+
+        public void RecordOrderStatusChange(int orderId, OrderStatus oldStatus, OrderStatus newStatus)
+        {
+            // Logic to record order status change metrics
+            _logger.LogInformation("Order {OrderId} status changed from {OldStatus} to {NewStatus}", orderId, oldStatus, newStatus);
+        }
     }
 }
