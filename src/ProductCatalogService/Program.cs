@@ -9,6 +9,8 @@ using Shared.Library.Controllers;
 using System.Diagnostics;
 using ProductCatalogService.Metrics; // Ensure ProductMetrics is properly referenced
 using Shared.Library.Data; // Add missing reference for AddEFCoreTracing
+using Shared.Library.DependencyInjection; // Add for AddErrorHandling
+using Shared.Library.Metrics; // Add for AddPrometheusMetrics
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,28 +37,7 @@ builder.Services.AddControllers()
 builder.Services.AddSingleton(new Shared.Library.Telemetry.HttpClientContextPropagator(TelemetryConfig.ServiceName));
 
 // Add OpenTelemetry with enhanced configuration, custom span processors, and samplers
-builder.Services.AddServiceTelemetry(
-    TelemetryConfig.ServiceName, 
-    TelemetryConfig.ServiceVersion,
-    configureSampling: options => {
-        options.SamplerType = SamplerType.ParentBased;
-        options.SamplingProbability = 0.25; // Higher sampling for product catalog
-        options.UseCompositeSampling = true;
-        options.MaxTracesPerSecond = 50; // Max 50 traces per second
-        
-        // Add a rule to always sample product searches
-        options.Rules.Add(new SamplingRule
-        {
-            Name = "AlwaysSampleProductSearches",
-            SpanNamePatterns = new List<string> { "*Product.Search*", "*Product.GetById*" },
-            SamplingDecision = SamplingDecision.RecordAndSample
-        });
-    },
-    tracerType: TracerProviderType.AspNet,
-    customExporterConfigure: options => {
-        options.SlowSpanThresholdMs = 500; // Lower threshold for product catalog service
-        options.WithOperationNames("Product.Search", "Product.GetById");
-    });
+// builder.Services.AddServiceTelemetry(TelemetryConfig.ServiceName, TelemetryConfig.ServiceVersion, builder.Configuration, TracerProviderType.JaegerHttp);
 
 // Add services required for async context propagation
 builder.Services.AddAsyncContextPropagation();
