@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
-using System.Linq;
-using Microsoft.Extensions.DependencyInjection; // Added for IServiceProvider
-using Microsoft.Extensions.Hosting; // Added for IHostedService
-using Microsoft.Extensions.Logging; // Added for ILogger
-using OrderProcessingService.Data; // Added for OrderDbContext
-using OrderProcessingService.Models; // Added for OrderStatus
+using OrderProcessingService.Data; 
+using OrderProcessingService.Models; 
 
 namespace OrderProcessingService.Metrics
 {
@@ -83,9 +77,6 @@ namespace OrderProcessingService.Metrics
                 return 0; // Return 0 if there's an error
             }
         }
-
-        // Removed the problematic GetOrderMeasurements method which used yield return incorrectly
-        // and returned IEnumerable<Measurement<int>> instead of int.
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
