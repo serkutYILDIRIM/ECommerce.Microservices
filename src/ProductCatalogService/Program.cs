@@ -7,10 +7,10 @@ using Shared.Library.Middleware;
 using Shared.Library.Logging;
 using Shared.Library.Controllers;
 using System.Diagnostics;
-using ProductCatalogService.Metrics; // Ensure ProductMetrics is properly referenced
-using Shared.Library.Data; // Add missing reference for AddEFCoreTracing
-using Shared.Library.DependencyInjection; // Add for AddErrorHandling
-using Shared.Library.Metrics; // Add for AddPrometheusMetrics
+using ProductCatalogService.Metrics;
+using Shared.Library.Data; 
+using Shared.Library.DependencyInjection; 
+using Shared.Library.Metrics; 
 
 var builder = WebApplication.CreateBuilder(args);
 

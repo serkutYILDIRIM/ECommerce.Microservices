@@ -33,5 +33,5 @@ public enum OrderStatus
     Shipped,
     Delivered,
     Cancelled,
-    Completed // Added missing value
+    Completed 
 }
