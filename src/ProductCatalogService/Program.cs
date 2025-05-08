@@ -103,10 +103,10 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 // Expose Prometheus metrics
-app.MapPrometheusScrapingEndpoint();
+Shared.Library.Metrics.PrometheusExtensions.MapPrometheusScrapingEndpoint(app);
 
 // Define API endpoints
-app.MapGet("/products", async (ProductDbContext db, string? category = null, string? searchTerm = null, ProductMetrics metrics) =>
+app.MapGet("/products", async (ProductDbContext db, ProductMetrics metrics, string? category = null, string? searchTerm = null) =>
 {
     // Use the custom ActivitySource for better control
     using var activity = TelemetryConfig.ActivitySource.StartActivity("GetAllProducts");
