@@ -87,8 +87,6 @@ namespace OrderProcessingService.Metrics
             return Task.CompletedTask;
         }
 
-        // Removed DoWork method as it's not needed for observable gauges
-
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("OrderMetrics Hosted Service is stopping.");
@@ -100,7 +98,7 @@ namespace OrderProcessingService.Metrics
         {
             _timer?.Dispose();
             _meter.Dispose();
-            GC.SuppressFinalize(this); // Added standard Dispose pattern
+            GC.SuppressFinalize(this);
         }
 
         public void RecordOrderCreation(Order order)
