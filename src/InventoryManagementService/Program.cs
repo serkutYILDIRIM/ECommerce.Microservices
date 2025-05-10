@@ -6,9 +6,8 @@ using Shared.Library.Telemetry;
 using Shared.Library.Middleware;
 using Shared.Library.Logging;
 using Shared.Library.Controllers;
-using Shared.Library.Telemetry.Sampling; // Add namespace for SamplerType and other sampling-related types
+using Shared.Library.Telemetry.Sampling;
 using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 using Shared.Library.Telemetry.Baggage;
 using Shared.Library.Services;
 using InventoryManagementService.Services;
