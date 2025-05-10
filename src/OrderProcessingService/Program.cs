@@ -8,7 +8,6 @@ using Shared.Library.Middleware;
 using Shared.Library.Logging;
 using Shared.Library.Controllers;
 using System.Diagnostics;
-using System.Text.Json;
 using Shared.Library.Data;
 using Shared.Library.Telemetry.Sampling;
 using OpenTelemetry.Trace;
