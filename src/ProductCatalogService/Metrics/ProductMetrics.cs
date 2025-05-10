@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using ProductCatalogService.Models;
 using Shared.Library.Metrics;
-using ProductCatalogService.Data; // Add missing reference for ProductDbContext
+using ProductCatalogService.Data;
 
 namespace ProductCatalogService.Metrics;
 
