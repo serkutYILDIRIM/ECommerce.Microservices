@@ -94,17 +94,6 @@ public class EFCoreDiagnosticInterceptor : DbCommandInterceptor
             { "db.data_source", dataSource }
         };
 
-            // Add exception information if any
-            //if (eventData is CommandErrorEventData errorEventData)
-            //{
-            //    if (errorEventData.Exception != null)
-            //    {
-            //        tags.Add("db.error", errorEventData.Exception.Message);
-            //        tags.Add("db.error_type", errorEventData.Exception.GetType().Name);
-            //        currentActivity.SetStatus(ActivityStatusCode.Error, errorEventData.Exception.Message);
-            //    }
-            //}
-
             // Record full command details as an event
             currentActivity.AddEvent(new ActivityEvent("EFCoreCommandExecuted", tags: tags));
 
