@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
 using System.Diagnostics;
-using System.Text;
 
 namespace Shared.Library.Controllers;
 
