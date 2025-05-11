@@ -36,9 +36,6 @@ builder.Services.AddControllers()
 // Add HttpClientContextPropagator
 builder.Services.AddSingleton(new Shared.Library.Telemetry.HttpClientContextPropagator(TelemetryConfig.ServiceName));
 
-// Add OpenTelemetry with enhanced configuration, custom span processors, and samplers
-// builder.Services.AddServiceTelemetry(TelemetryConfig.ServiceName, TelemetryConfig.ServiceVersion, builder.Configuration, TracerProviderType.JaegerHttp);
-
 // Add services required for async context propagation
 builder.Services.AddAsyncContextPropagation();
 
