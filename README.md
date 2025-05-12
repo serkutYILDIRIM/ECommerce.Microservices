@@ -18,6 +18,58 @@ The observability stack includes:
 - **Loki**: Stores log data
 - **Grafana**: Unified visualization and dashboarding
 
+```mermaid
+graph TD
+    subgraph "Microservices"
+        Product["ProductCatalogService"]
+        Order["OrderProcessingService"]
+        Inventory["InventoryManagementService"]
+    end
+
+    subgraph "OpenTelemetry"
+        Collector["OpenTelemetry Collector"]
+    end
+
+    subgraph "Observability Backend"
+        Prometheus["Prometheus\\n(Metrics)"]
+        Tempo["Tempo\\n(Traces)"]
+        Loki["Loki\\n(Logs)"]
+    end
+
+    subgraph "Visualization"
+        Grafana["Grafana Dashboards"]
+    end
+
+    %% Connections between services
+    Product <--> Order
+    Order <--> Inventory
+    Product <--> Inventory
+
+    %% Telemetry flow
+    Product --> Collector
+    Order --> Collector
+    Inventory --> Collector
+
+    %% Backend connections
+    Collector --> Prometheus
+    Collector --> Tempo
+    Collector --> Loki
+
+    %% Visualization
+    Prometheus --> Grafana
+    Tempo --> Grafana
+    Loki --> Grafana
+
+    style Product fill:#90caf9,stroke:#1565c0
+    style Order fill:#90caf9,stroke:#1565c0
+    style Inventory fill:#90caf9,stroke:#1565c0
+    style Collector fill:#ffcc80,stroke:#ef6c00
+    style Prometheus fill:#a5d6a7,stroke:#2e7d32
+    style Tempo fill:#a5d6a7,stroke:#2e7d32
+    style Loki fill:#a5d6a7,stroke:#2e7d32
+    style Grafana fill:#ce93d8,stroke:#7b1fa2
+```
+
 ![Architecture Diagram](./docs/images/architecture-diagram.png)
 
 ## Features
