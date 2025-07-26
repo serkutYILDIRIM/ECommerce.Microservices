@@ -241,9 +241,7 @@ public static class ActivityExtensions
         // We need to use a mechanism to translate from the tag string to the actual service provider
         // This could involve a static dictionary or some other storage mechanism
         if (!string.IsNullOrEmpty(tagValue) && ActivityServiceProviderRegistry.TryGetProvider(tagValue, out var serviceProvider))
-        {
             return serviceProvider;
-        }
 
         return null;
     }
