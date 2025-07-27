@@ -258,9 +258,7 @@ public class InventoryController : ControllerBase
         
         // Boost priority for premium customers
         if (context.IsPremiumCustomer)
-        {
             priority += 2;
-        }
         
         // Boost priority for high priority orders
         if (request.IsPriority || context.IsHighPriority)
