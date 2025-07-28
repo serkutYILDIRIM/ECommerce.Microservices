@@ -262,9 +262,7 @@ public class InventoryController : ControllerBase
         
         // Boost priority for high priority orders
         if (request.IsPriority || context.IsHighPriority)
-        {
             priority += 3;
-        }
         
         // Cap at maximum priority
         return Math.Min(priority, 10);
