@@ -289,9 +289,8 @@ public class BackgroundServiceMetrics
         else
         {
             if (error != null)
-            {
                 tags.Add(new KeyValuePair<string, object?>("error.type", error.GetType().Name));
-            }
+            
             
             _operationFailureCounter.Add(1, tags.ToArray());
         }
