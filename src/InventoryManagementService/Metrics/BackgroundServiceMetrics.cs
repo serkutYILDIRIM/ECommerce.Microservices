@@ -400,8 +400,7 @@ public class BackgroundServiceMetrics
             var timeSinceLastSuccess = DateTime.UtcNow - _lastSuccessfulExecution;
             
             if (timeSinceLastSuccess.TotalMinutes > 5)
-                // Deduct up to 20 points for staleness
-                score -= Math.Min(20, timeSinceLastSuccess.TotalMinutes);
+                score -= Math.Min(20, timeSinceLastSuccess.TotalMinutes); // Deduct up to 20 points for staleness
 
             // Ensure score is between 0 and 100
             score = Math.Max(0, Math.Min(100, score));
