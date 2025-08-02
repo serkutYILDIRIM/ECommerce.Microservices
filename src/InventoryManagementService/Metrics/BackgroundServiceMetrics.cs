@@ -392,8 +392,7 @@ public class BackgroundServiceMetrics
             if (_totalExecutions > 0)
             {
                 double failureRate = (double)_totalFailedExecutions / _totalExecutions;
-                // Deduct up to 30 points for high failure rate
-                score -= failureRate * 30;
+                score -= failureRate * 30; // Deduct up to 30 points for high failure rate
             }
 
             // Deduct points for staleness (no recent successful execution)
