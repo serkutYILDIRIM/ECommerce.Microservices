@@ -214,6 +214,7 @@ public class InventoryMetrics
     private IEnumerable<Measurement<int>> GetTotalStockCount()
     {
         int totalStock = 0;
+
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
