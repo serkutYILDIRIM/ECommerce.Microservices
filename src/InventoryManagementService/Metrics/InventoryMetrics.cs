@@ -277,7 +277,7 @@ public class InventoryMetrics
 
         try
         {
-            using var scope = _serviceScopeFactory.CreateScope(); // Fixed to use _serviceScopeFactory
+            using var scope = _serviceScopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
             var totalAvailable = dbContext.InventoryItems.Sum(i => i.QuantityAvailable);
