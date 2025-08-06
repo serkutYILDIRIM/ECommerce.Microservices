@@ -353,9 +353,7 @@ public class InventoryMetrics
             var items = dbContext.InventoryItems.Where(i => i.LastRestocked != default).ToList();
 
             if (items.Any())
-            {
                 avgDays = items.Average(i => (now - i.LastRestocked).TotalDays);
-            }
         }
         catch (Exception ex)
         {
