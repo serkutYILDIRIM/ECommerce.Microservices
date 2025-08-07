@@ -249,8 +249,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
         if (!string.IsNullOrEmpty(context.Channel))
         {
             if (context.Channel.Equals("mobile_app", StringComparison.OrdinalIgnoreCase))
-                // Apply mobile app promotion if applicable
-                reservation.Notes += " Mobile app order.";
+                reservation.Notes += " Mobile app order."; // Apply mobile app promotion if applicable
 
             else if (context.Channel.Equals("partner_api", StringComparison.OrdinalIgnoreCase))
             {
