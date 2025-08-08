@@ -253,8 +253,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
 
             else if (context.Channel.Equals("partner_api", StringComparison.OrdinalIgnoreCase))
             {
-                // Apply special partner handling
-                reservation.Notes += " Partner API order.";
+                reservation.Notes += " Partner API order."; // Apply special partner handling
             }
         }
         
