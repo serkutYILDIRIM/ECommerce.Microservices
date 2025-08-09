@@ -123,7 +123,7 @@ public class InventoryBusinessRules : IInventoryBusinessRules
             };
         }
         
-        // All checks passed, reservation is allowed
+         // All checks passed, reservation is allowed
         activity?.SetTag("decision.allowed", true);
         activity?.SetTag("decision.reason", "all_checks_passed");
         
