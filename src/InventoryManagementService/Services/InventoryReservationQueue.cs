@@ -110,9 +110,8 @@ public class InventoryReservationQueue : IDisposable
                     {
                         if (_priorityQueues[priority].TryDequeue(out var task))
                         {
-                            // Update metrics
-                            _queueSizes[priority] = _priorityQueues[priority].Count;
-                            
+                            _queueSizes[priority] = _priorityQueues[priority].Count; // Update metrics
+
                             // Process the task with its original context
                             await ProcessReservationTaskAsync(task);
                             
