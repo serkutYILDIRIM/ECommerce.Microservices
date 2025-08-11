@@ -112,9 +112,8 @@ public class InventoryReservationQueue : IDisposable
                         {
                             _queueSizes[priority] = _priorityQueues[priority].Count; // Update metrics
 
-                            // Process the task with its original context
-                            await ProcessReservationTaskAsync(task);
-                            
+                            await ProcessReservationTaskAsync(task); // Process the task with its original context
+
                             // Found and processed a task, break to start from highest priority again
                             break;
                         }
