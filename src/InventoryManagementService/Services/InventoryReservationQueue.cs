@@ -114,8 +114,7 @@ public class InventoryReservationQueue : IDisposable
 
                             await ProcessReservationTaskAsync(task); // Process the task with its original context
 
-                            // Found and processed a task, break to start from highest priority again
-                            break;
+                            break; // Found and processed a task, break to start from highest priority again
                         }
                     }
                 }
