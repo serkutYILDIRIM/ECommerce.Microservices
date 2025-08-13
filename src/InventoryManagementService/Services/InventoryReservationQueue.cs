@@ -123,8 +123,7 @@ public class InventoryReservationQueue : IDisposable
                     _processingSemaphore.Release();
                 }
                 
-                // Small delay before checking queues again
-                await Task.Delay(100, cancellationToken);
+                await Task.Delay(100, cancellationToken); // Small delay before checking queues again
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
