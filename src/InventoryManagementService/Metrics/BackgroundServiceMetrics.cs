@@ -401,8 +401,7 @@ public class BackgroundServiceMetrics
             if (timeSinceLastSuccess.TotalMinutes > 5)
                 score -= Math.Min(20, timeSinceLastSuccess.TotalMinutes); // Deduct up to 20 points for staleness
 
-            // Ensure score is between 0 and 100
-            score = Math.Max(0, Math.Min(100, score));
+            score = Math.Max(0, Math.Min(100, score)); // Ensure score is between 0 and 100
 
             return score;
         }
