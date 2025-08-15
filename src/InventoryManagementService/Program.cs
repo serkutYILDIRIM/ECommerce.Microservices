@@ -402,9 +402,7 @@ app.MapPut("/inventory/{id}", async (int id, InventoryItem updatedItem, Inventor
         inventoryItem.LastUpdated = DateTime.UtcNow;
         
         if (updatedItem.QuantityAvailable > inventoryItem.QuantityAvailable)
-        {
             inventoryItem.LastRestocked = DateTime.UtcNow;
-        }
         
         await db.SaveChangesAsync();
         
