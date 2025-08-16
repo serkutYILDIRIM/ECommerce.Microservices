@@ -472,9 +472,7 @@ app.MapPost("/inventory/reserve", async (InventoryReservation reservation, Inven
         {
             // Check if this is a stockout (zero available)
             if (availableForReservation == 0)
-            {
                 metrics.RecordStockout(inventoryItem, "Zero available inventory");
-            }
             
             activity?.SetTag("inventory.sufficient", false);
             activity?.SetTag("inventory.available", availableForReservation);
