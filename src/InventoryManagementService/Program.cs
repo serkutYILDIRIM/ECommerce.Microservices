@@ -517,9 +517,7 @@ app.MapPost("/inventory/reserve", async (InventoryReservation reservation, Inven
         
         // Check for low stock after reservation
         if (remainingAvailable <= inventoryItem.ReorderThreshold)
-        {
             metrics.RecordLowStockEvent(inventoryItem);
-        }
         
         // Record estimated inventory value (simplified, would use actual pricing in real app)
         double estimatedItemValue = 100.0; // Placeholder for demo
