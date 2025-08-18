@@ -622,10 +622,9 @@ app.MapPost("/inventory/fulfill", async (InventoryReservation fulfillment, Inven
         
         // Check if we need to reorder
         bool needsReorder = inventoryItem.QuantityAvailable <= inventoryItem.ReorderThreshold;
+
         if (needsReorder)
-        {
             metrics.RecordLowStockEvent(inventoryItem);
-        }
         
         await db.SaveChangesAsync();
         
