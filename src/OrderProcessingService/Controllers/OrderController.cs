@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using OrderProcessingService.Data;
 using OrderProcessingService.Models;
 using OrderProcessingService.Services;
