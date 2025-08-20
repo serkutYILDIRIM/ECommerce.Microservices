@@ -81,9 +81,7 @@ public class InventoryService : IInventoryService
                     "api/inventory/reserve", request);
                     
                 if (response == null)
-                {
                     throw new InvalidOperationException("Failed to get a response from the inventory service");
-                }
                 
                 return response;
             }, context);
