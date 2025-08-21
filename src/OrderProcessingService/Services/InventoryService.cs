@@ -88,8 +88,7 @@ public class InventoryService : IInventoryService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error reserving inventory for order {OrderId}, product {ProductId}", 
-                orderId, productId);
+            _logger.LogError(ex, "Error reserving inventory for order {OrderId}, product {ProductId}", orderId, productId);
                 
             return new InventoryReservationResult
             {
