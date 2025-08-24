@@ -360,7 +360,7 @@ app.MapPost("/orders", async (
             foreach (var item in order.Items)
             {
                 bool reserved = await inventoryService.CheckAndReserveInventoryAsync(
-    order.Id, item.ProductId, item.Quantity).ContinueWith(t => t.Result.Success);
+                order.Id, item.ProductId, item.Quantity).ContinueWith(t => t.Result.Success);
 
                 if (reserved) reservedItems++;
 
