@@ -72,9 +72,7 @@ public class InventoryService : IInventoryService
                 // If this is a high priority request, add a custom header
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/inventory/reserve");
                 if (isPriority)
-                {
                     requestMessage.Headers.Add("X-Priority", "High");
-                }
                 
                 // Send the request
                 var response = await _httpClient.PostAsJsonAsync<InventoryReservationRequest, InventoryReservationResult>(
