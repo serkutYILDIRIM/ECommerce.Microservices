@@ -160,7 +160,7 @@ public class AsyncContextTestController : ControllerBase
             {
                 // Add a delay to ensure we're testing true async behavior
                 await Task.Delay(10);
-                
+
                 var afterActivity = Activity.Current;
                 return new
                 {
@@ -257,7 +257,7 @@ public class AsyncContextTestController : ControllerBase
 
         // Create multi-threaded work
         var tasks = new List<Task<object>>();
-        
+
         // Add 3 parallel tasks
         for (int i = 0; i < 3; i++)
         {
