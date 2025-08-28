@@ -16,6 +16,7 @@ public interface IRequestContextLogger
     /// Logs an operation with trace context
     /// </summary>
     void LogOperation<T>(LogLevel level, string message, T entity, params object[] args);
+
     
     /// <summary>
     /// Logs an exception with trace context
