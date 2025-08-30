@@ -43,7 +43,7 @@ public class SamplingMonitorController : ControllerBase
                 r.Name,
                 r.SpanNamePatterns,
                 r.SpanKinds,
-                AttributeMatches = r.AttributeMatches.Select(a => new 
+                AttributeMatches = r.AttributeMatches.Select(a => new
                 {
                     a.Key,
                     a.Value,
@@ -67,10 +67,10 @@ public class SamplingMonitorController : ControllerBase
 
         var oldValue = _samplingConfig.SamplingProbability;
         _samplingConfig.SamplingProbability = probability;
-        
-        _logger.LogInformation("Updated sampling probability from {OldValue} to {NewValue}", 
+
+        _logger.LogInformation("Updated sampling probability from {OldValue} to {NewValue}",
             oldValue, probability);
-        
+
         return Ok(new { Message = $"Updated sampling probability to {probability}" });
     }
 
@@ -87,10 +87,10 @@ public class SamplingMonitorController : ControllerBase
 
         var oldValue = _samplingConfig.MaxTracesPerSecond;
         _samplingConfig.MaxTracesPerSecond = maxTracesPerSecond;
-        
-        _logger.LogInformation("Updated maximum traces per second from {OldValue} to {NewValue}", 
+
+        _logger.LogInformation("Updated maximum traces per second from {OldValue} to {NewValue}",
             oldValue, maxTracesPerSecond);
-        
+
         return Ok(new { Message = $"Updated maximum traces per second to {maxTracesPerSecond}" });
     }
 
@@ -131,9 +131,9 @@ public class SamplingMonitorController : ControllerBase
         }
 
         _samplingConfig.Rules.Remove(rule);
-        
+
         _logger.LogInformation("Deleted sampling rule: {RuleName}", name);
-        
+
         return NoContent();
     }
 }
