@@ -101,22 +101,22 @@ public class TelemetryTestController : ControllerBase
     public IActionResult CreateTestSpan([FromQuery] bool createError = false, [FromQuery] bool createSlow = false)
     {
         var source = new ActivitySource(_serviceName);
-        
+
         using var activity = source.StartActivity("TestSpan");
         if (activity != null)
         {
             activity.SetTag("test.timestamp", DateTime.UtcNow);
             activity.SetTag("test.source", _serviceName);
-            
+
             if (createSlow)
             {
                 _logger.LogInformation("Creating slow test span");
                 activity.SetTag("test.slow", true);
-                
+
                 // Simulate a slow operation
                 Thread.Sleep((int)_options.SlowSpanThresholdMs + 100);
             }
-            
+
             if (createError)
             {
                 _logger.LogInformation("Creating error test span");
@@ -125,11 +125,11 @@ public class TelemetryTestController : ControllerBase
                 activity.RecordException(new Exception("Test exception"));
             }
         }
-        
-        return Ok(new 
-        { 
-            message = "Test span created", 
-            traceId = activity?.TraceId.ToString(), 
+
+        return Ok(new
+        {
+            message = "Test span created",
+            traceId = activity?.TraceId.ToString(),
             spanId = activity?.SpanId.ToString(),
             slow = createSlow,
             error = createError
