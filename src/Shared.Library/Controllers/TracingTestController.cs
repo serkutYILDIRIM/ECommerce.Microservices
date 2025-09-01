@@ -53,7 +53,7 @@ public class TracingTestController : ControllerBase
         }
         responseData["requestHeaders"] = headers;
 
-        _logger.LogInformation("Trace test executed on {ServiceName} with TraceId: {TraceId}", 
+        _logger.LogInformation("Trace test executed on {ServiceName} with TraceId: {TraceId}",
             _serviceName, activity.TraceId.ToString());
 
         return Ok(responseData);
@@ -81,18 +81,18 @@ public class TracingTestController : ControllerBase
             // Forward the request to the target service
             var client = clientFactory.CreateClient();
             var request = new HttpRequestMessage(HttpMethod.Get, targetUrl);
-            
+
             // The TracingMessageHandler will handle context propagation
             var response = await client.SendAsync(request);
-            
+
             if (!response.IsSuccessStatusCode)
             {
-                return StatusCode((int)response.StatusCode, 
+                return StatusCode((int)response.StatusCode,
                     $"Target service returned status code: {response.StatusCode}");
             }
 
             var content = await response.Content.ReadAsStringAsync();
-            
+
             var responseData = new Dictionary<string, object>
             {
                 ["initiatingService"] = _serviceName,
