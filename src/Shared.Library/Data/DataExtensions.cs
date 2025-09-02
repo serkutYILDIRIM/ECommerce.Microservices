@@ -14,14 +14,14 @@ public static class DataExtensions
     /// Adds Entity Framework Core tracing and performance monitoring to a DbContext
     /// </summary>
     public static IServiceCollection AddEFCoreTracing<TContext>(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         string serviceName,
         ActivitySource activitySource,
-        Action<DbContextOptionsBuilder>? optionsAction = null) 
+        Action<DbContextOptionsBuilder>? optionsAction = null)
         where TContext : DbContext
     {
         // Register the interceptor
-        services.AddSingleton<EFCoreDiagnosticInterceptor>(sp => 
+        services.AddSingleton<EFCoreDiagnosticInterceptor>(sp =>
             new EFCoreDiagnosticInterceptor(
                 serviceName,
                 activitySource,
@@ -32,11 +32,11 @@ public static class DataExtensions
         {
             // Apply custom options if provided
             optionsAction?.Invoke(options);
-            
+
             // Add the diagnostic interceptor
             var interceptor = sp.GetRequiredService<EFCoreDiagnosticInterceptor>();
             options.AddInterceptors(interceptor);
-            
+
             // Enable detailed errors and sensitive data logging in development
             var env = sp.GetService<IHostEnvironment>();
             if (env?.IsDevelopment() ?? false)
@@ -48,43 +48,43 @@ public static class DataExtensions
 
         return services;
     }
-    
+
     /// <summary>
     /// Extension method for DbContext to track query performance
     /// </summary>
     public static async Task<List<T>> ToTrackedListAsync<T>(
-        this IQueryable<T> query, 
+        this IQueryable<T> query,
         string operationName,
         ActivitySource activitySource,
         CancellationToken cancellationToken = default)
     {
         // Get entity type name for metrics
         var entityType = typeof(T).Name;
-        
+
         // Create a span for this specific query
         using var activity = activitySource.StartActivity($"DB:{operationName}");
-        
+
         try
         {
             // Measure query execution time
             var stopwatch = Stopwatch.StartNew();
             var result = await query.ToListAsync(cancellationToken);
             stopwatch.Stop();
-            
+
             // Record metrics
             activity?.SetTag("db.operation", operationName);
             activity?.SetTag("db.entity_type", entityType);
             activity?.SetTag("db.result_count", result.Count);
             activity?.SetTag("db.execution_time_ms", stopwatch.ElapsedMilliseconds);
-            
+
             // Get performance metrics service if available
             var performanceMetrics = GetPerformanceMetrics();
             performanceMetrics?.RecordEntityFrameworkOperation(
-                operationName, 
-                entityType, 
-                stopwatch.ElapsedMilliseconds, 
+                operationName,
+                entityType,
+                stopwatch.ElapsedMilliseconds,
                 true);
-            
+
             return result;
         }
         catch (Exception ex)
@@ -92,22 +92,22 @@ public static class DataExtensions
             // Record exception information
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.RecordException(ex);
-            
+
             // Record failure metrics
             var performanceMetrics = GetPerformanceMetrics();
             performanceMetrics?.RecordEntityFrameworkOperation(
-                operationName, 
-                entityType, 
+                operationName,
+                entityType,
                 -1, // Unable to measure time for failed operations
                 false);
-                
+
             throw;
         }
-        
+
         // Helper to get performance metrics if available
         PerformanceMetrics? GetPerformanceMetrics()
         {
-            try 
+            try
             {
                 using var scope = GetServiceProvider()?.CreateScope();
                 return scope?.ServiceProvider.GetService<PerformanceMetrics>();
@@ -117,7 +117,7 @@ public static class DataExtensions
                 return null;
             }
         }
-        
+
         // Helper to get service provider from current Activity
         IServiceProvider? GetServiceProvider()
         {
@@ -131,7 +131,7 @@ public static class DataExtensions
             }
         }
     }
-    
+
     /// <summary>
     /// Extension method to track individual entity retrieval performance
     /// </summary>
@@ -143,31 +143,31 @@ public static class DataExtensions
     {
         // Get entity type name for metrics
         var entityType = typeof(T).Name;
-        
+
         // Create a span for this specific query
         using var activity = activitySource.StartActivity($"DB:{operationName}");
-        
+
         try
         {
             // Measure query execution time
             var stopwatch = Stopwatch.StartNew();
             var result = await query.FirstOrDefaultAsync(cancellationToken);
             stopwatch.Stop();
-            
+
             // Record metrics
             activity?.SetTag("db.operation", operationName);
             activity?.SetTag("db.entity_type", entityType);
             activity?.SetTag("db.found_result", result != null);
             activity?.SetTag("db.execution_time_ms", stopwatch.ElapsedMilliseconds);
-            
+
             // Get performance metrics service if available
             var performanceMetrics = GetPerformanceMetrics();
             performanceMetrics?.RecordEntityFrameworkOperation(
-                operationName, 
-                entityType, 
-                stopwatch.ElapsedMilliseconds, 
+                operationName,
+                entityType,
+                stopwatch.ElapsedMilliseconds,
                 true);
-            
+
             return result;
         }
         catch (Exception ex)
@@ -175,22 +175,22 @@ public static class DataExtensions
             // Record exception information
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.RecordException(ex);
-            
+
             // Record failure metrics
             var performanceMetrics = GetPerformanceMetrics();
             performanceMetrics?.RecordEntityFrameworkOperation(
-                operationName, 
-                entityType, 
+                operationName,
+                entityType,
                 -1, // Unable to measure time for failed operations
                 false);
-                
+
             throw;
         }
-        
+
         // Helper to get performance metrics if available
         PerformanceMetrics? GetPerformanceMetrics()
         {
-            try 
+            try
             {
                 using var scope = GetServiceProvider()?.CreateScope();
                 return scope?.ServiceProvider.GetService<PerformanceMetrics>();
@@ -200,7 +200,7 @@ public static class DataExtensions
                 return null;
             }
         }
-        
+
         // Helper to get service provider from current Activity
         IServiceProvider? GetServiceProvider()
         {
