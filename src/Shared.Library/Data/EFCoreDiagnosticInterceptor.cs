@@ -1,7 +1,7 @@
-using System.Data.Common;
-using System.Diagnostics;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
+using System.Data.Common;
+using System.Diagnostics;
 
 namespace Shared.Library.Data;
 
