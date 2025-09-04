@@ -17,12 +17,12 @@ public static class ErrorHandlingExtensions
     public static IServiceCollection AddErrorHandling(this IServiceCollection services)
     {
         // Register any services needed for error handling
-        
+
         // Configure OpenTelemetry exception processor if needed
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Configures the application to use global exception handling with OpenTelemetry integration
     /// </summary>
@@ -30,10 +30,10 @@ public static class ErrorHandlingExtensions
     {
         // Add the global exception handling middleware
         app.UseGlobalExceptionHandler();
-        
+
         return app;
     }
-    
+
     /// <summary>
     /// Configures the application with comprehensive exception handling, 
     /// combining global exception handling and problem details
@@ -42,13 +42,13 @@ public static class ErrorHandlingExtensions
     {
         // Add the global exception handling middleware
         app.UseGlobalExceptionHandler();
-        
+
         // Use built-in problem details
         app.UseStatusCodePages();
-        
+
         return app;
     }
-    
+
     /// <summary>
     /// Sets up global exception handling for ASP.NET Core 7+ minimal APIs
     /// </summary>
@@ -56,9 +56,9 @@ public static class ErrorHandlingExtensions
     {
         // Add error handling middleware
         app.UseGlobalExceptionHandler();
-        
+
         // Add global error handler for minimal APIs
-        app.Use(async (context, next) => 
+        app.Use(async (context, next) =>
         {
             try
             {
@@ -68,23 +68,23 @@ public static class ErrorHandlingExtensions
             {
                 // If exception wasn't already handled by middleware, record it
                 Activity.Current?.SetStatus(ActivityStatusCode.Error);
-                Activity.Current?.AddEvent(new ActivityEvent("unhandled_exception", 
-                    tags: new ActivityTagsCollection 
+                Activity.Current?.AddEvent(new ActivityEvent("unhandled_exception",
+                    tags: new ActivityTagsCollection
                     {
                         { "exception.type", ex.GetType().FullName },
                         { "exception.message", ex.Message },
                         { "exception.stacktrace", ex.StackTrace }
                     }
                 ));
-                
+
                 // Log and rethrow to let the ExceptionHandlingMiddleware handle it
                 var logger = context.RequestServices.GetService<ILogger<WebApplication>>();
                 logger?.LogError(ex, "Unhandled exception in minimal API endpoint");
-                
+
                 throw;
             }
         });
-        
+
         return app;
     }
 }
