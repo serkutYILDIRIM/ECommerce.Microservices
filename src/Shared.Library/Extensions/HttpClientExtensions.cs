@@ -44,7 +44,7 @@ public static class HttpClientExtensions
         {
             client.BaseAddress = new Uri(productCatalogBaseUrl);
         })
-        .AddHttpMessageHandler(provider => 
+        .AddHttpMessageHandler(provider =>
             new TracingMessageHandler(provider.GetRequiredService<HttpClientContextPropagator>()))
         .AddPolicyHandler(retryPolicy)
         .AddPolicyHandler(circuitBreakerPolicy);
@@ -54,7 +54,7 @@ public static class HttpClientExtensions
         {
             client.BaseAddress = new Uri(orderProcessingBaseUrl);
         })
-        .AddHttpMessageHandler(provider => 
+        .AddHttpMessageHandler(provider =>
             new TracingMessageHandler(provider.GetRequiredService<HttpClientContextPropagator>()))
         .AddPolicyHandler(retryPolicy)
         .AddPolicyHandler(circuitBreakerPolicy);
@@ -64,7 +64,7 @@ public static class HttpClientExtensions
         {
             client.BaseAddress = new Uri(inventoryManagementBaseUrl);
         })
-        .AddHttpMessageHandler(provider => 
+        .AddHttpMessageHandler(provider =>
             new TracingMessageHandler(provider.GetRequiredService<HttpClientContextPropagator>()))
         .AddPolicyHandler(retryPolicy)
         .AddPolicyHandler(circuitBreakerPolicy);
@@ -82,10 +82,10 @@ public static class HttpClientExtensions
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         PropagateContext(request);
-        
+
         using var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
-        
+
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions, cancellationToken);
     }
@@ -101,16 +101,16 @@ public static class HttpClientExtensions
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
         PropagateContext(request);
-        
+
         if (value != null)
         {
             var json = JsonSerializer.Serialize(value, _jsonOptions);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         }
-        
+
         using var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
-        
+
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonSerializer.DeserializeAsync<TResponse>(stream, _jsonOptions, cancellationToken);
     }
@@ -126,13 +126,13 @@ public static class HttpClientExtensions
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
         PropagateContext(request);
-        
+
         if (value != null)
         {
             var json = JsonSerializer.Serialize(value, _jsonOptions);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         }
-        
+
         return await client.SendAsync(request, cancellationToken);
     }
 
@@ -147,16 +147,16 @@ public static class HttpClientExtensions
     {
         using var request = new HttpRequestMessage(HttpMethod.Put, requestUri);
         PropagateContext(request);
-        
+
         if (value != null)
         {
             var json = JsonSerializer.Serialize(value, _jsonOptions);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         }
-        
+
         using var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
-        
+
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         return await JsonSerializer.DeserializeAsync<TResponse>(stream, _jsonOptions, cancellationToken);
     }
@@ -182,21 +182,21 @@ public static class HttpClientExtensions
         // Get the current activity
         var activity = Activity.Current;
         if (activity == null) return;
-        
+
         // Add trace context (W3C traceparent)
         var traceparent = $"00-{activity.TraceId}-{activity.SpanId}-{(activity.Recorded ? "01" : "00")}";
         request.Headers.Add("traceparent", traceparent);
-        
+
         if (!string.IsNullOrEmpty(activity.TraceStateString))
         {
             request.Headers.Add("tracestate", activity.TraceStateString);
         }
-        
+
         // Propagate baggage in W3C format
         if (activity.Baggage.Any())
         {
             var baggageValues = new List<string>();
-            
+
             foreach (var baggageItem in activity.Baggage)
             {
                 if (!string.IsNullOrEmpty(baggageItem.Value))
@@ -204,24 +204,24 @@ public static class HttpClientExtensions
                     baggageValues.Add($"{baggageItem.Key}={Uri.EscapeDataString(baggageItem.Value)}");
                 }
             }
-            
+
             if (baggageValues.Any())
             {
                 request.Headers.Add("baggage", string.Join(",", baggageValues));
             }
         }
-        
+
         // Add correlation ID as a specific header for systems that don't support W3C trace context
         var correlationId = activity.GetBaggageItem(BaggageManager.Keys.CorrelationId);
         if (!string.IsNullOrEmpty(correlationId))
         {
             request.Headers.Add("X-Correlation-ID", correlationId);
         }
-        
+
         // Propagate important business context as dedicated headers
         PropagateBusinessContextToHeaders(request.Headers, activity);
     }
-    
+
     /// <summary>
     /// Propagates important business context to HTTP headers
     /// </summary>
@@ -233,31 +233,31 @@ public static class HttpClientExtensions
         {
             headers.Add("X-Customer-ID", customerId);
         }
-        
+
         var customerTier = activity.GetBaggageItem(BaggageManager.Keys.CustomerTier);
         if (!string.IsNullOrEmpty(customerTier))
         {
             headers.Add("X-Customer-Tier", customerTier);
         }
-        
+
         var orderId = activity.GetBaggageItem(BaggageManager.Keys.OrderId);
         if (!string.IsNullOrEmpty(orderId))
         {
             headers.Add("X-Order-ID", orderId);
         }
-        
+
         var orderPriority = activity.GetBaggageItem(BaggageManager.Keys.OrderPriority);
         if (!string.IsNullOrEmpty(orderPriority))
         {
             headers.Add("X-Order-Priority", orderPriority);
         }
-        
+
         var transactionId = activity.GetBaggageItem(BaggageManager.Keys.TransactionId);
         if (!string.IsNullOrEmpty(transactionId))
         {
             headers.Add("X-Transaction-ID", transactionId);
         }
-        
+
         // Add source service for debugging
         var sourceName = activity.GetBaggageItem(BaggageManager.Keys.ServiceName);
         if (!string.IsNullOrEmpty(sourceName))
