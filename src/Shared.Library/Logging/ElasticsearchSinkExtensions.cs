@@ -1,11 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Serilog;
-using Serilog.Configuration;
 using Serilog.Events;
 using Serilog.Formatting;
 using Serilog.Sinks.Elasticsearch;
 using System.Collections.Specialized;
-using System.Reflection;
 
 namespace Shared.Library.Logging;
 
@@ -18,10 +16,10 @@ public static class ElasticsearchSinkExtensions
     /// Adds Elasticsearch sink to the Serilog configuration
     /// </summary>
     public static LoggerConfiguration ConfigureElasticsearch(
-        this LoggerConfiguration loggerConfiguration, 
+        this LoggerConfiguration loggerConfiguration,
         IConfiguration configuration,
-        string serviceName, 
-        string serviceVersion, 
+        string serviceName,
+        string serviceVersion,
         string environment)
     {
         // Get Elasticsearch configuration
@@ -38,29 +36,29 @@ public static class ElasticsearchSinkExtensions
         {
             // Base index name with service name for better organization
             IndexFormat = $"logs-{serviceName.ToLower()}-{DateTime.UtcNow:yyyy-MM}",
-            
+
             // Index lifetime management
             AutoRegisterTemplate = true,
             AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv7,
             NumberOfShards = 2,
             NumberOfReplicas = 1,
-            
+
             // Performance settings
             BatchAction = ElasticOpType.Create,
             BatchPostingLimit = 50,
             Period = TimeSpan.FromSeconds(2),
             InlineFields = true,
-            
+
             // Default pipeline and common fields
             ModifyConnectionSettings = x => x.BasicAuthentication(
                 elasticsearchSection["Username"] ?? string.Empty,
                 elasticsearchSection["Password"] ?? string.Empty),
-            
+
             // Customize the document
             CustomFormatter = new ElasticsearchCustomFormatter(serviceName, serviceVersion, environment),
-            
+
             // Fault handling
-            FailureCallback = e => 
+            FailureCallback = e =>
                 Console.Error.WriteLine("Unable to submit event to Elasticsearch: {0}", e.MessageTemplate),
             EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog |
                                EmitEventFailureHandling.RaiseCallback |
