@@ -27,10 +27,10 @@ public static class CategoryLogger
     /// Log with a specific category
     /// </summary>
     public static void LogWithCategory(
-        this ILogger logger, 
-        LogLevel logLevel, 
+        this ILogger logger,
+        LogLevel logLevel,
         string category,
-        string message, 
+        string message,
         params object[] args)
     {
         using (LogContext.PushProperty("Category", category))
@@ -38,22 +38,22 @@ public static class CategoryLogger
             logger.Log(logLevel, message, args);
         }
     }
-    
+
     /// <summary>
     /// Log with a specific category and include exception
     /// </summary>
     public static void LogWithCategory(
-        this ILogger logger, 
-        LogLevel logLevel, 
+        this ILogger logger,
+        LogLevel logLevel,
         string category,
         Exception exception,
-        string message, 
+        string message,
         params object[] args)
     {
         using (LogContext.PushProperty("Category", category))
         {
             logger.Log(logLevel, exception, message, args);
-            
+
             // Also add category to the activity if present
             if (Activity.Current != null)
             {
@@ -61,46 +61,46 @@ public static class CategoryLogger
             }
         }
     }
-    
+
     #region Convenience Methods
-    
+
     // Convenience methods for different log levels
-    public static void SecurityError(this ILogger logger, string message, params object[] args) => 
+    public static void SecurityError(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Error, Categories.Security, message, args);
-        
-    public static void SecurityWarning(this ILogger logger, string message, params object[] args) => 
+
+    public static void SecurityWarning(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Warning, Categories.Security, message, args);
-        
-    public static void SecurityInfo(this ILogger logger, string message, params object[] args) => 
+
+    public static void SecurityInfo(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Information, Categories.Security, message, args);
-        
-    public static void BusinessError(this ILogger logger, string message, params object[] args) => 
+
+    public static void BusinessError(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Error, Categories.BusinessLogic, message, args);
-        
-    public static void BusinessWarning(this ILogger logger, string message, params object[] args) => 
+
+    public static void BusinessWarning(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Warning, Categories.BusinessLogic, message, args);
-        
-    public static void BusinessInfo(this ILogger logger, string message, params object[] args) => 
+
+    public static void BusinessInfo(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Information, Categories.BusinessLogic, message, args);
-        
-    public static void DataError(this ILogger logger, string message, params object[] args) => 
+
+    public static void DataError(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Error, Categories.DataAccess, message, args);
-        
-    public static void DataWarning(this ILogger logger, string message, params object[] args) => 
+
+    public static void DataWarning(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Warning, Categories.DataAccess, message, args);
-        
-    public static void DataInfo(this ILogger logger, string message, params object[] args) => 
+
+    public static void DataInfo(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Information, Categories.DataAccess, message, args);
-        
-    public static void APIInfo(this ILogger logger, string message, params object[] args) => 
+
+    public static void APIInfo(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Information, Categories.API, message, args);
-        
-    public static void APIDebug(this ILogger logger, string message, params object[] args) => 
+
+    public static void APIDebug(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Debug, Categories.API, message, args);
-        
-    public static void PerformanceInfo(this ILogger logger, string message, params object[] args) => 
+
+    public static void PerformanceInfo(this ILogger logger, string message, params object[] args) =>
         logger.LogWithCategory(LogLevel.Information, Categories.Performance, message, args);
-    
+
     #endregion
 }
 
@@ -110,16 +110,16 @@ public static class CategoryLogger
 public class LogContext : IDisposable
 {
     private readonly List<IDisposable> _disposables = new();
-    
+
     private LogContext() { }
-    
+
     public static LogContext PushProperty(string name, object? value)
     {
         var context = new LogContext();
         context._disposables.Add(Serilog.Context.LogContext.PushProperty(name, value));
         return context;
     }
-    
+
     public void Dispose()
     {
         foreach (var disposable in _disposables)
