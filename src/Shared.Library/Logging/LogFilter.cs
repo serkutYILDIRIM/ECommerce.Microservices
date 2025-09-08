@@ -4,7 +4,6 @@ using Serilog.Configuration;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Filters;
-using System.Diagnostics;
 
 namespace Shared.Library.Logging;
 
