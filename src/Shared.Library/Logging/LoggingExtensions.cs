@@ -2,15 +2,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Enrichers.Span;
 using Serilog.Events;
-using Serilog.Expressions;
 using Serilog.Formatting.Compact;
-using Serilog.Formatting.Json;
 using System.Diagnostics;
-using Serilog.AspNetCore;
 
 namespace Shared.Library.Logging;
 
