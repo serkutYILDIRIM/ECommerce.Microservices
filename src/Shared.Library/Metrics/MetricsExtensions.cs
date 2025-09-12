@@ -1,6 +1,6 @@
-using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
+using System.Diagnostics.Metrics;
 
 
 namespace Shared.Library.Metrics
@@ -23,14 +23,14 @@ namespace Shared.Library.Metrics
         {
             // Register the MeterProvider with a singleton lifecycle
             services.AddSingleton(sp => new MeterProvider(serviceName, serviceVersion));
-            
+
             // Register performance metrics singleton
             // These capture common performance indicators across all services
             services.AddSingleton<PerformanceMetrics>();
-            
+
             // Add Prometheus metrics endpoint for scraping
             services.AddPrometheusMetrics();
-            
+
             return services;
         }
 
@@ -60,13 +60,13 @@ namespace Shared.Library.Metrics
         /// <param name="unit">Unit of measurement</param>
         /// <param name="description">Description of what this counter measures</param>
         /// <returns>A counter metric instrument</returns>
-        public static Counter<T> CreateCounter<T>(this Meter meter, string name, string unit, string description) 
+        public static Counter<T> CreateCounter<T>(this Meter meter, string name, string unit, string description)
             where T : struct
         {
             // Create a counter with semantic naming convention and appropriate description
             return meter.CreateCounter<T>(name, unit, description);
         }
-        
+
         /// <summary>
         /// Creates a Histogram metric with appropriate key-value units.
         /// Histograms track the distribution of measurements (like request duration).
@@ -77,13 +77,13 @@ namespace Shared.Library.Metrics
         /// <param name="unit">Unit of measurement</param>
         /// <param name="description">Description of what this histogram measures</param>
         /// <returns>A histogram metric instrument</returns>
-        public static Histogram<T> CreateHistogram<T>(this Meter meter, string name, string unit, string description) 
+        public static Histogram<T> CreateHistogram<T>(this Meter meter, string name, string unit, string description)
             where T : struct
         {
             // Create a histogram with semantic naming convention and appropriate description
             return meter.CreateHistogram<T>(name, unit, description);
         }
-        
+
         /// <summary>
         /// Creates an UpDownCounter metric with appropriate key-value units.
         /// UpDownCounters track values that can increase or decrease (like active requests).
@@ -94,13 +94,13 @@ namespace Shared.Library.Metrics
         /// <param name="unit">Unit of measurement</param>
         /// <param name="description">Description of what this counter measures</param>
         /// <returns>An up-down counter metric instrument</returns>
-        public static UpDownCounter<T> CreateUpDownCounter<T>(this Meter meter, string name, string unit, string description) 
+        public static UpDownCounter<T> CreateUpDownCounter<T>(this Meter meter, string name, string unit, string description)
             where T : struct
         {
             // Create an up-down counter with semantic naming convention and appropriate description
             return meter.CreateUpDownCounter<T>(name, unit, description);
         }
-        
+
         /// <summary>
         /// Creates a Gauge metric instrument using Observable Gauge.
         /// Gauges capture a current value that can go up and down.
@@ -113,12 +113,12 @@ namespace Shared.Library.Metrics
         /// <param name="observeValue">Function to call for getting the current value</param>
         /// <param name="tags">Additional tags/dimensions for the metric</param>
         public static void CreateObservableGauge<T>(
-            this Meter meter, 
-            string name, 
+            this Meter meter,
+            string name,
             string unit,
             string description,
             Func<T> observeValue,
-            params KeyValuePair<string, object>[] tags) 
+            params KeyValuePair<string, object>[] tags)
             where T : struct
         {
             // Register an observable gauge that calls the observer function to get current values
@@ -132,7 +132,7 @@ namespace Shared.Library.Metrics
     public class MeterProvider
     {
         public Meter AppMeter { get; }
-        
+
         public MeterProvider(string serviceName, string serviceVersion)
         {
             // Create a meter with the service name as the name and version as the version
