@@ -29,14 +29,14 @@ public static class PrometheusExtensions
 
         // Add existing metrics services
         services.AddMetrics(serviceName, serviceVersion);
-        
+
         // Add service info metrics
         services.AddSingleton<IStartupFilter>(
             new ServiceInfoMetricsFilter(serviceName, serviceVersion));
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Maps the Prometheus metrics endpoint in the application
     /// </summary>
@@ -44,7 +44,7 @@ public static class PrometheusExtensions
         this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPrometheusScrapingEndpoint();
-        
+
         return endpoints;
     }
 }
@@ -56,13 +56,13 @@ internal class ServiceInfoMetricsFilter : IStartupFilter
 {
     private readonly string _serviceName;
     private readonly string _serviceVersion;
-    
+
     public ServiceInfoMetricsFilter(string serviceName, string serviceVersion)
     {
         _serviceName = serviceName;
         _serviceVersion = serviceVersion;
     }
-    
+
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
@@ -77,7 +77,7 @@ internal class ServiceInfoMetricsFilter : IStartupFilter
                     "service_info",
                     () => new[] { new System.Diagnostics.Metrics.Measurement<int>(1) },
                     description: "Service information");
-                    
+
                 var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
                 {
                     new("service.name", _serviceName),
@@ -86,11 +86,11 @@ internal class ServiceInfoMetricsFilter : IStartupFilter
                     new("os.type", Environment.OSVersion.Platform.ToString()),
                     new("runtime", System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription)
                 };
-                
+
                 // Continue the pipeline
                 await next(context);
             });
-            
+
             // Call the next middleware
             next(app);
         };
