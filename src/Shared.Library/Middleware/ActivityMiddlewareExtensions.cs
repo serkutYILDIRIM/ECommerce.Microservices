@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Shared.Library.Telemetry.Contexts;
 
 namespace Shared.Library.Middleware;
 
