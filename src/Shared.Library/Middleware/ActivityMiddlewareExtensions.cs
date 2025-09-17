@@ -16,7 +16,7 @@ public static class ActivityMiddlewareExtensions
         // This method is primarily a marker for documentation,
         // as we rely on the built-in capabilities of Activity and execution context.
         // Any future enhancements to async context would be added here.
-        
+
         return services;
     }
 
@@ -35,7 +35,7 @@ public static class ActivityMiddlewareExtensions
                 // Create a temporary activity to ensure context propagation works
                 using var tempActivity = new System.Diagnostics.ActivitySource("Shared.Library")
                     .StartActivity("HttpRequest");
-                
+
                 await next();
             }
             else
@@ -49,7 +49,7 @@ public static class ActivityMiddlewareExtensions
                 await next();
             }
         });
-        
+
         return app;
     }
 }
