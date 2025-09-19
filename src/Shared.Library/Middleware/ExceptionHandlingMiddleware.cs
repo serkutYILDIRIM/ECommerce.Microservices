@@ -48,10 +48,10 @@ public class ExceptionHandlingMiddleware
     {
         // Capture the current activity for telemetry
         var activity = Activity.Current;
-        
+
         // Get correlation ID (either from baggage or generate new one)
-        string correlationId = _baggageManager?.GetCorrelationId() ?? 
-                               context.TraceIdentifier ?? 
+        string correlationId = _baggageManager?.GetCorrelationId() ??
+                               context.TraceIdentifier ??
                                Guid.NewGuid().ToString();
 
         // Set the activity status to error
@@ -59,12 +59,12 @@ public class ExceptionHandlingMiddleware
         {
             // Mark the span as error
             activity.SetStatus(ActivityStatusCode.Error, exception.Message);
-            
+
             // Add error tags for easier querying
             activity.SetTag("error", true);
             activity.SetTag("error.type", exception.GetType().Name);
             activity.SetTag("error.message", exception.Message);
-            
+
             // Record the exception as a span event (shows up nicely in trace visualization)
             RecordExceptionEvent(activity, exception);
         }
@@ -73,13 +73,13 @@ public class ExceptionHandlingMiddleware
         var statusCode = DetermineStatusCode(exception);
         context.Response.StatusCode = (int)statusCode;
         context.Response.ContentType = "application/json";
-        
+
         // Create the error response with appropriate detail level based on environment
         var errorResponse = CreateErrorResponse(exception, correlationId, statusCode);
-        
+
         // Log the error with all the relevant context
         LogException(exception, context, correlationId, statusCode);
-        
+
         // Serialize and write the error response
         await context.Response.WriteAsync(
             JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
@@ -88,7 +88,7 @@ public class ExceptionHandlingMiddleware
                 WriteIndented = true
             }));
     }
-    
+
     private void RecordExceptionEvent(Activity activity, Exception exception)
     {
         // Create tags dictionary with exception details
@@ -98,18 +98,18 @@ public class ExceptionHandlingMiddleware
             { "exception.message", exception.Message },
             { "exception.stacktrace", exception.StackTrace }
         };
-        
+
         // Add inner exception details if available
         if (exception.InnerException != null)
         {
             tags.Add("exception.inner.type", exception.InnerException.GetType().FullName);
             tags.Add("exception.inner.message", exception.InnerException.Message);
         }
-        
+
         // Record as an event on the current span
         activity.AddEvent(new ActivityEvent("exception", default, tags));
     }
-    
+
     private HttpStatusCode DetermineStatusCode(Exception exception)
     {
         // Map common exceptions to appropriate status codes
@@ -125,7 +125,7 @@ public class ExceptionHandlingMiddleware
             _ => HttpStatusCode.InternalServerError
         };
     }
-    
+
     private ErrorResponse CreateErrorResponse(Exception exception, string correlationId, HttpStatusCode statusCode)
     {
         var errorResponse = new ErrorResponse
@@ -136,12 +136,12 @@ public class ExceptionHandlingMiddleware
             Message = exception.Message,
             Timestamp = DateTimeOffset.UtcNow
         };
-        
+
         // In development, include more details
         if (_environment.IsDevelopment())
         {
             errorResponse.Details = exception.StackTrace;
-            
+
             // Add inner exceptions if they exist
             if (exception.InnerException != null)
             {
@@ -153,14 +153,14 @@ public class ExceptionHandlingMiddleware
                 };
             }
         }
-        
+
         return errorResponse;
     }
-    
+
     private void LogException(Exception exception, HttpContext context, string correlationId, HttpStatusCode statusCode)
     {
         // Create a structured log with context
-        _logger.LogError(exception, 
+        _logger.LogError(exception,
             "Request failed with status {StatusCode}. TraceId: {TraceId}, CorrelationId: {CorrelationId}, Path: {Path}, Method: {Method}",
             (int)statusCode,
             Activity.Current?.TraceId.ToString() ?? "unavailable",
@@ -168,7 +168,7 @@ public class ExceptionHandlingMiddleware
             context.Request.Path,
             context.Request.Method);
     }
-    
+
     private string GetErrorTitle(HttpStatusCode statusCode)
     {
         return statusCode switch
