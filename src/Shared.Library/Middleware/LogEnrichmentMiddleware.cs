@@ -27,7 +27,7 @@ public class LogEnrichmentMiddleware
     {
         // Get current activity for trace context
         var activity = Activity.Current;
-        
+
         // Add important request info to the active span
         if (activity != null)
         {
@@ -35,7 +35,7 @@ public class LogEnrichmentMiddleware
             activity.SetTag("http.url", GetDisplayUrl(context.Request));
             activity.SetTag("http.host", context.Request.Host.Value);
             activity.SetTag("http.request_id", context.TraceIdentifier);
-            
+
             // Add user info if available
             if (context.User?.Identity?.IsAuthenticated == true)
             {
@@ -43,12 +43,12 @@ public class LogEnrichmentMiddleware
                 activity.SetTag("enduser.id", context.User.Identity.Name);
             }
         }
-        
+
         // Get or create correlation ID
-        string correlationId = context.Request.Headers["x-correlation-id"].FirstOrDefault() ?? 
-                              activity?.TraceId.ToString() ?? 
+        string correlationId = context.Request.Headers["x-correlation-id"].FirstOrDefault() ??
+                              activity?.TraceId.ToString() ??
                               Guid.NewGuid().ToString();
-        
+
         // Get baggage from headers or current activity
         Dictionary<string, string> baggage = ExtractBaggage(context, activity, correlationId);
 
@@ -68,11 +68,11 @@ public class LogEnrichmentMiddleware
             {
                 // Continue processing the request
                 await _next(context);
-                
+
                 // Add response info
                 LogContext.PushProperty("StatusCode", context.Response.StatusCode);
                 LogContext.PushProperty("ResponseTime", GetElapsedTime(activity));
-                
+
                 // Log request completion
                 LogRequestCompletion(context, activity);
             }
@@ -86,34 +86,34 @@ public class LogEnrichmentMiddleware
                 }
 
                 // Log the exception with all context
-                _logger.LogError(ex, "Request failed: {Method} {Path}", 
+                _logger.LogError(ex, "Request failed: {Method} {Path}",
                     context.Request.Method, context.Request.Path);
-                
+
                 // Re-throw to allow error handling middleware to process it
                 throw;
             }
         }
     }
-    
+
     private static string GetDisplayUrl(HttpRequest request)
     {
         var displayUrl = new StringBuilder(request.Scheme)
             .Append("://")
             .Append(request.Host.Value);
-        
+
         if (request.Path.HasValue)
             displayUrl.Append(request.Path.Value);
-        
+
         if (request.QueryString.HasValue)
             displayUrl.Append(request.QueryString.Value);
-        
+
         return displayUrl.ToString();
     }
-    
+
     private static Dictionary<string, string> ExtractBaggage(HttpContext context, Activity? activity, string correlationId)
     {
         var baggage = new Dictionary<string, string>();
-        
+
         // Add baggage from current activity
         if (activity != null)
         {
@@ -122,19 +122,19 @@ public class LogEnrichmentMiddleware
                 baggage[item.Key] = item.Value;
             }
         }
-        
+
         // Add correlation ID to baggage
         if (!baggage.ContainsKey("correlation.id"))
         {
             baggage["correlation.id"] = correlationId;
         }
-        
+
         // Add service name to baggage
         if (!baggage.ContainsKey("service.name") && context.Request.Headers.TryGetValue("x-source-service", out var sourceService))
         {
             baggage["service.name"] = sourceService.ToString();
         }
-        
+
         // Extract any baggage headers from the request
         if (context.Request.Headers.TryGetValue("baggage", out var baggageHeader))
         {
@@ -143,7 +143,7 @@ public class LogEnrichmentMiddleware
                 baggage[pair.Key] = pair.Value;
             }
         }
-        
+
         // Also look for HTTP_BAGGAGE header (some proxies transform it)
         if (context.Request.Headers.TryGetValue("HTTP_BAGGAGE", out var httpBaggage))
         {
@@ -152,20 +152,20 @@ public class LogEnrichmentMiddleware
                 baggage[pair.Key] = pair.Value;
             }
         }
-        
+
         return baggage;
     }
-    
+
     private static Dictionary<string, string> ParseW3CBaggageHeader(string baggageHeader)
     {
         var result = new Dictionary<string, string>();
-        
+
         if (string.IsNullOrEmpty(baggageHeader))
             return result;
-            
+
         // Split baggage items (comma-separated list)
         var baggageItems = baggageHeader.Split(',');
-        
+
         foreach (var item in baggageItems)
         {
             // Each baggage item is in key=value format
@@ -175,45 +175,45 @@ public class LogEnrichmentMiddleware
                 result[keyValue[0].Trim()] = keyValue[1].Trim();
             }
         }
-        
+
         return result;
     }
-    
+
     private static double GetElapsedTime(Activity? activity)
     {
         if (activity == null)
             return 0;
-            
+
         return (DateTime.UtcNow - activity.StartTimeUtc).TotalMilliseconds;
     }
-    
+
     private void LogRequestCompletion(HttpContext context, Activity? activity)
     {
         var statusCode = context.Response.StatusCode;
-        var level = statusCode >= 500 ? LogLevel.Error : 
-                    statusCode >= 400 ? LogLevel.Warning : 
+        var level = statusCode >= 500 ? LogLevel.Error :
+                    statusCode >= 400 ? LogLevel.Warning :
                     LogLevel.Information;
-                    
+
         var responseTime = GetElapsedTime(activity);
-        
+
         if (level == LogLevel.Error)
         {
-            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms", 
+            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms",
                 context.Request.Method, context.Request.Path, statusCode, responseTime);
         }
         else if (level == LogLevel.Warning)
         {
-            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms", 
+            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms",
                 context.Request.Method, context.Request.Path, statusCode, responseTime);
         }
         else if (responseTime > 500) // Log slow requests
         {
-            _logger.LogWarning("HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms (slow)", 
+            _logger.LogWarning("HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms (slow)",
                 context.Request.Method, context.Request.Path, statusCode, responseTime);
         }
         else if (level == LogLevel.Debug)
         {
-            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms", 
+            _logger.Log(level, "HTTP {Method} {Path} responded {StatusCode} in {ResponseTime:0.0000}ms",
                 context.Request.Method, context.Request.Path, statusCode, responseTime);
         }
     }
