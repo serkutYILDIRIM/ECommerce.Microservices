@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
-using System.Text;
 
 namespace Shared.Library.Middleware;
 
