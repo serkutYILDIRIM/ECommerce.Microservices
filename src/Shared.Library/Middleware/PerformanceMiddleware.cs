@@ -22,8 +22,8 @@ public class PerformanceMiddleware
 
     public async Task InvokeAsync(HttpContext context, PerformanceMetrics metrics)
     {
-
-        if (context.Request.Path.StartsWithSegments("/metrics") || // Skip metrics endpoints to avoid recursion
+        // Skip metrics endpoints to avoid recursion
+        if (context.Request.Path.StartsWithSegments("/metrics") || 
             context.Request.Path.StartsWithSegments("/health"))
         {
             await _next(context);
