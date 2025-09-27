@@ -71,7 +71,7 @@ public class TracingMiddleware
             // Set important trace context tags
             currentActivity.SetTag("service.name", _serviceName);
             currentActivity.SetTag("http.correlation_id", correlationId);
-            
+
             if (!string.IsNullOrEmpty(serviceChain))
             {
                 context.Response.Headers["x-service-chain"] = serviceChain;
