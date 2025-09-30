@@ -37,38 +37,38 @@ public class BusinessContextEnricher
             ServiceName = _baggageManager.Get(BaggageManager.Keys.ServiceName),
             Timestamp = DateTime.UtcNow
         };
-        
+
         return context;
     }
-    
+
     /// <summary>
     /// Enriches an entity with context from baggage
     /// </summary>
     public T EnrichEntity<T>(T entity) where T : class
     {
         if (entity == null) return entity;
-        
+
         // Get common property types that might be on entities
         var entityType = entity.GetType();
-        
+
         // Try to set CorrelationId if the property exists
         var correlationIdProperty = entityType.GetProperty("CorrelationId");
-        if (correlationIdProperty?.PropertyType == typeof(string) && 
+        if (correlationIdProperty?.PropertyType == typeof(string) &&
             correlationIdProperty.CanWrite)
         {
             correlationIdProperty.SetValue(entity, _baggageManager.GetCorrelationId());
         }
-        
+
         // Similarly for other common properties
         TrySetPropertyFromBaggage(entity, "CustomerId", BaggageManager.Keys.CustomerId);
         TrySetPropertyFromBaggage(entity, "OrderId", BaggageManager.Keys.OrderId);
         TrySetPropertyFromBaggage(entity, "TransactionId", BaggageManager.Keys.TransactionId);
         TrySetPropertyFromBaggage(entity, "Channel", BaggageManager.Keys.Channel);
         TrySetPropertyFromBaggage(entity, "CreatedBy", BaggageManager.Keys.ServiceName);
-        
+
         // Set timestamps if available
         var createdAtProperty = entityType.GetProperty("CreatedAt");
-        if (createdAtProperty?.PropertyType == typeof(DateTime) && 
+        if (createdAtProperty?.PropertyType == typeof(DateTime) &&
             createdAtProperty.CanWrite)
         {
             if ((DateTime)createdAtProperty.GetValue(entity) == default)
@@ -76,10 +76,10 @@ public class BusinessContextEnricher
                 createdAtProperty.SetValue(entity, DateTime.UtcNow);
             }
         }
-        
+
         return entity;
     }
-    
+
     /// <summary>
     /// Tries to set a property on an entity from baggage
     /// </summary>
@@ -99,7 +99,7 @@ public class BusinessContextEnricher
             }
         }
     }
-    
+
     /// <summary>
     /// Enriches a request with context from baggage
     /// </summary>
@@ -107,16 +107,16 @@ public class BusinessContextEnricher
     {
         return EnrichEntity(request);
     }
-    
+
     /// <summary>
     /// Sets business properties as baggage for outgoing operations
     /// </summary>
     public void SetBusinessContextAsBaggage<T>(T entity) where T : class
     {
         if (entity == null) return;
-        
+
         var entityType = entity.GetType();
-        
+
         // Check common business properties
         CheckAndSetBaggage(entity, "CustomerId", BaggageManager.Keys.CustomerId);
         CheckAndSetBaggage(entity, "OrderId", BaggageManager.Keys.OrderId);
@@ -126,7 +126,7 @@ public class BusinessContextEnricher
         CheckAndSetBaggage(entity, "Channel", BaggageManager.Keys.Channel);
         CheckAndSetBaggage(entity, "Region", BaggageManager.Keys.Region);
     }
-    
+
     /// <summary>
     /// Checks if an entity has a property and sets its value as baggage
     /// </summary>
@@ -160,20 +160,20 @@ public class BusinessContext
     public string RequestSource { get; set; }
     public string ServiceName { get; set; }
     public DateTime Timestamp { get; set; }
-    
+
     /// <summary>
     /// Determines if this request is from a premium customer
     /// </summary>
-    public bool IsPremiumCustomer => 
-        !string.IsNullOrEmpty(CustomerTier) && 
-        (CustomerTier.Equals("premium", StringComparison.OrdinalIgnoreCase) || 
+    public bool IsPremiumCustomer =>
+        !string.IsNullOrEmpty(CustomerTier) &&
+        (CustomerTier.Equals("premium", StringComparison.OrdinalIgnoreCase) ||
          CustomerTier.Equals("gold", StringComparison.OrdinalIgnoreCase));
-    
+
     /// <summary>
     /// Determines if this is a high priority operation
     /// </summary>
     public bool IsHighPriority =>
-        !string.IsNullOrEmpty(OrderPriority) && 
+        !string.IsNullOrEmpty(OrderPriority) &&
         (OrderPriority.Equals("high", StringComparison.OrdinalIgnoreCase) ||
          OrderPriority.Equals("urgent", StringComparison.OrdinalIgnoreCase));
 }
