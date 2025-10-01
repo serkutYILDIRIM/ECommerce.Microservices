@@ -16,30 +16,30 @@ public abstract class ContextAwareBackgroundService : BackgroundService
     {
         _logger = logger;
     }
-    
+
     /// <summary>
     /// Executes the background service with proper trace context
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("{ServiceName} is starting", GetType().Name);
-        
+
         try
         {
             // Create a root activity for the background service
             using var activity = new ActivitySource(GetType().Name)
                 .StartActivity($"{GetType().Name}.Execute");
-                
+
             if (activity != null)
             {
                 activity.SetTag("service.component", "background_service");
                 activity.SetTag("service.name", GetType().Name);
-                
+
                 // Add baggage items that may be useful for context propagation
                 activity.AddBaggage("service.component", "background_service");
                 activity.AddBaggage("service.name", GetType().Name);
             }
-            
+
             // Execute with the root activity as context
             await ExecuteWithActivityAsync(stoppingToken);
         }
@@ -48,15 +48,15 @@ public abstract class ContextAwareBackgroundService : BackgroundService
             _logger.LogError(ex, "Error executing {ServiceName}", GetType().Name);
             throw;
         }
-        
+
         _logger.LogInformation("{ServiceName} is stopping", GetType().Name);
     }
-    
+
     /// <summary>
     /// Override this method to implement the background service logic with trace context
     /// </summary>
     protected abstract Task ExecuteWithActivityAsync(CancellationToken stoppingToken);
-    
+
     /// <summary>
     /// Creates a new activity for a specific operation within the background service
     /// </summary>
@@ -64,16 +64,16 @@ public abstract class ContextAwareBackgroundService : BackgroundService
     {
         var activity = new ActivitySource(GetType().Name)
             .StartActivity(operationName);
-            
+
         if (activity != null)
         {
             activity.SetTag("service.component", "background_service");
             activity.SetTag("service.operation", operationName);
         }
-        
+
         return activity;
     }
-    
+
     /// <summary>
     /// Runs a task ensuring the current activity context is preserved
     /// </summary>
@@ -81,7 +81,7 @@ public abstract class ContextAwareBackgroundService : BackgroundService
     {
         return ContextAwareBackgroundTask.Run(action);
     }
-    
+
     /// <summary>
     /// Runs a task ensuring the current activity context is preserved
     /// </summary>
