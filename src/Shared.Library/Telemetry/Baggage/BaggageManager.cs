@@ -13,8 +13,8 @@ public class BaggageManager
     // Standard baggage keys for common business contexts
     public static class Keys
     {
-        
-        public const string CustomerId = "customer.id";// Customer-related baggage
+        // Customer-related baggage
+        public const string CustomerId = "customer.id";
         public const string CustomerType = "customer.type";
         public const string CustomerTier = "customer.tier";
 
