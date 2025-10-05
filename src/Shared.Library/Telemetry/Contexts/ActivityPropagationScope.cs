@@ -33,7 +33,7 @@ public class ActivityPropagationScope : IDisposable
         _originalActivity = Activity.Current;
         _capturedActivity = activity;
         _restoreOnDispose = restoreOnDispose;
-        
+
         // Set the captured activity as current immediately
         if (_capturedActivity != null)
         {
