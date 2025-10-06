@@ -74,7 +74,7 @@ public class AsyncContextScope
     internal AsyncContextScope()
     {
         _activity = Activity.Current;
-        
+
         // Capture all baggage items
         if (_activity != null)
         {
@@ -92,13 +92,13 @@ public class AsyncContextScope
     {
         // Return a composite disposable that will restore the original context
         var originalActivity = Activity.Current;
-        
+
         // Set the captured activity as current
         if (_activity != null)
         {
             Activity.Current = _activity;
         }
-        
+
         return new ContextRestorer(originalActivity);
     }
 
