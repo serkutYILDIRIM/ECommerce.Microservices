@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry.Trace;
 using OpenTelemetry;
+using OpenTelemetry.Trace;
 
 namespace Shared.Library.Telemetry.Exporters;
 
