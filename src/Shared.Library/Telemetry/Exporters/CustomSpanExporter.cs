@@ -15,14 +15,14 @@ public class CustomSpanExporter : BaseExporter<Activity>
     private readonly TelemetryStorage _storage;
 
     public CustomSpanExporter(
-        CustomExporterOptions options, 
+        CustomExporterOptions options,
         TelemetryStorage storage,
         ILogger<CustomSpanExporter> logger)
     {
         _options = options;
         _storage = storage;
         _logger = logger;
-        _logger.LogInformation("CustomSpanExporter initialized with endpoint: {Endpoint}", 
+        _logger.LogInformation("CustomSpanExporter initialized with endpoint: {Endpoint}",
             _options.Endpoint ?? "Not configured");
     }
 
@@ -36,7 +36,7 @@ public class CustomSpanExporter : BaseExporter<Activity>
             foreach (var span in batch)
             {
                 // Skip internal spans if configured to do so
-                if (_options.SkipInternalSpans && span.Kind == ActivityKind.Internal && 
+                if (_options.SkipInternalSpans && span.Kind == ActivityKind.Internal &&
                     !_options.IncludeOperationNames.Contains(span.OperationName))
                 {
                     continue;
@@ -90,12 +90,12 @@ public class CustomSpanExporter : BaseExporter<Activity>
     private Dictionary<string, object> ExtractTags(Activity span)
     {
         var tags = new Dictionary<string, object>();
-        
+
         foreach (var tag in span.Tags)
         {
             tags[tag.Key] = tag.Value ?? string.Empty;
         }
-        
+
         // Add baggage items if enabled
         if (_options.IncludeBaggage)
         {
@@ -104,7 +104,7 @@ public class CustomSpanExporter : BaseExporter<Activity>
                 tags[$"baggage.{item.Key}"] = item.Value ?? string.Empty;
             }
         }
-        
+
         return tags;
     }
 
@@ -178,22 +178,22 @@ public class CustomSpanExporter : BaseExporter<Activity>
     {
         if (string.IsNullOrEmpty(_options.Endpoint))
             return;
-            
+
         try
         {
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(5);
-            
+
             var content = new StringContent(
-                JsonSerializer.Serialize(span), 
-                System.Text.Encoding.UTF8, 
+                JsonSerializer.Serialize(span),
+                System.Text.Encoding.UTF8,
                 "application/json");
-                
+
             var response = await httpClient.PostAsync(_options.Endpoint, content);
-            
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Failed to send span data to endpoint: {StatusCode}", 
+                _logger.LogWarning("Failed to send span data to endpoint: {StatusCode}",
                     response.StatusCode);
             }
         }
@@ -211,7 +211,7 @@ public class CustomSpanExporter : BaseExporter<Activity>
         // This can be extended with your own custom processing logic
         // For instance, you might want to enrich spans with additional information,
         // trigger alerts for certain conditions, or send data to custom analytics platforms
-        
+
         if (_options.EnrichWithMetadata)
         {
             // Example: add environment info
@@ -219,23 +219,23 @@ public class CustomSpanExporter : BaseExporter<Activity>
             spanRecord.Tags["custom.process_id"] = Environment.ProcessId;
             spanRecord.Tags["custom.machine_name"] = Environment.MachineName;
         }
-        
+
         // Detect errors
         if (span.Status == ActivityStatusCode.Error)
         {
             _storage.AddErrorSpan(spanRecord);
-            
+
             // You could trigger alerts here or send notifications
-            _logger.LogWarning("Error span detected: {SpanName}, TraceId: {TraceId}", 
+            _logger.LogWarning("Error span detected: {SpanName}, TraceId: {TraceId}",
                 span.DisplayName, span.TraceId);
         }
-        
+
         // Detect slow spans
         if (span.Duration.TotalMilliseconds > _options.SlowSpanThresholdMs)
         {
             _storage.AddSlowSpan(spanRecord);
-            
-            _logger.LogWarning("Slow span detected: {SpanName}, Duration: {Duration}ms, TraceId: {TraceId}", 
+
+            _logger.LogWarning("Slow span detected: {SpanName}, Duration: {Duration}ms, TraceId: {TraceId}",
                 span.DisplayName, span.Duration.TotalMilliseconds, span.TraceId);
         }
     }
