@@ -13,14 +13,14 @@ public class TelemetryStorage
     private readonly ConcurrentQueue<SpanRecord> _slowSpans = new();
     private readonly int _maxStoredSpans;
     private readonly ILogger<TelemetryStorage> _logger;
-    
+
     public TelemetryStorage(ILogger<TelemetryStorage> logger, int maxStoredSpans = 1000)
     {
         _maxStoredSpans = maxStoredSpans;
         _logger = logger;
         _logger.LogInformation("Telemetry storage initialized with capacity for {MaxSpans} spans", maxStoredSpans);
     }
-    
+
     /// <summary>
     /// Add a span to the recent spans queue
     /// </summary>
@@ -29,7 +29,7 @@ public class TelemetryStorage
         _recentSpans.Enqueue(span);
         TrimQueue(_recentSpans);
     }
-    
+
     /// <summary>
     /// Add a span to the error spans queue
     /// </summary>
@@ -38,7 +38,7 @@ public class TelemetryStorage
         _errorSpans.Enqueue(span);
         TrimQueue(_errorSpans);
     }
-    
+
     /// <summary>
     /// Add a span to the slow spans queue
     /// </summary>
@@ -47,52 +47,52 @@ public class TelemetryStorage
         _slowSpans.Enqueue(span);
         TrimQueue(_slowSpans);
     }
-    
+
     /// <summary>
     /// Get recent spans with optional filtering
     /// </summary>
     public IEnumerable<SpanRecord> GetRecentSpans(int count = 100, string? serviceName = null)
     {
         var spans = _recentSpans.ToArray();
-        
+
         if (!string.IsNullOrEmpty(serviceName))
         {
             spans = spans.Where(s => s.ServiceName == serviceName).ToArray();
         }
-        
+
         return spans.Reverse().Take(count);
     }
-    
+
     /// <summary>
     /// Get error spans with optional filtering
     /// </summary>
     public IEnumerable<SpanRecord> GetErrorSpans(int count = 100, string? serviceName = null)
     {
         var spans = _errorSpans.ToArray();
-        
+
         if (!string.IsNullOrEmpty(serviceName))
         {
             spans = spans.Where(s => s.ServiceName == serviceName).ToArray();
         }
-        
+
         return spans.Reverse().Take(count);
     }
-    
+
     /// <summary>
     /// Get slow spans with optional filtering
     /// </summary>
     public IEnumerable<SpanRecord> GetSlowSpans(int count = 100, string? serviceName = null)
     {
         var spans = _slowSpans.ToArray();
-        
+
         if (!string.IsNullOrEmpty(serviceName))
         {
             spans = spans.Where(s => s.ServiceName == serviceName).ToArray();
         }
-        
+
         return spans.Reverse().Take(count);
     }
-    
+
     /// <summary>
     /// Get a specific trace by ID
     /// </summary>
@@ -102,7 +102,7 @@ public class TelemetryStorage
             .Where(s => s.TraceId == traceId)
             .OrderBy(s => s.StartTime);
     }
-    
+
     /// <summary>
     /// Clear all stored spans
     /// </summary>
@@ -111,10 +111,10 @@ public class TelemetryStorage
         while (_recentSpans.TryDequeue(out _)) { }
         while (_errorSpans.TryDequeue(out _)) { }
         while (_slowSpans.TryDequeue(out _)) { }
-        
+
         _logger.LogInformation("Telemetry storage cleared");
     }
-    
+
     /// <summary>
     /// Get statistics about stored spans
     /// </summary>
@@ -129,7 +129,7 @@ public class TelemetryStorage
             UniqueServices = _recentSpans.Select(s => s.ServiceName).Distinct().Count()
         };
     }
-    
+
     // Keep the queue size under the maximum limit
     private void TrimQueue<T>(ConcurrentQueue<T> queue)
     {
