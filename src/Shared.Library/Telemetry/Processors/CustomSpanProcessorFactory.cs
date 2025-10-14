@@ -24,7 +24,7 @@ public static class CustomSpanProcessorFactory
         var httpContextLogger = loggerFactory.CreateLogger<HttpContextEnricher>();
         var databaseLogger = loggerFactory.CreateLogger<DatabaseOperationEnricher>();
         var errorDetailsLogger = loggerFactory.CreateLogger<ErrorDetailsEnricher>();
-        
+
         // Create enrichers
         var enrichers = new List<ISpanEnricher>
         {
@@ -33,11 +33,11 @@ public static class CustomSpanProcessorFactory
             new DatabaseOperationEnricher(databaseLogger),
             new ErrorDetailsEnricher(errorDetailsLogger)
         };
-        
+
         // Create processor with all enrichers
         return new CustomSpanProcessor(enrichers, processorLogger);
     }
-    
+
     /// <summary>
     /// Creates a custom span processor with standard enrichers for worker services
     /// </summary>
@@ -52,7 +52,7 @@ public static class CustomSpanProcessorFactory
         var serviceInfoLogger = loggerFactory.CreateLogger<ServiceInfoEnricher>();
         var databaseLogger = loggerFactory.CreateLogger<DatabaseOperationEnricher>();
         var errorDetailsLogger = loggerFactory.CreateLogger<ErrorDetailsEnricher>();
-        
+
         // Create enrichers (without HTTP context for workers)
         var enrichers = new List<ISpanEnricher>
         {
@@ -60,7 +60,7 @@ public static class CustomSpanProcessorFactory
             new DatabaseOperationEnricher(databaseLogger),
             new ErrorDetailsEnricher(errorDetailsLogger)
         };
-        
+
         // Create processor with all enrichers
         return new CustomSpanProcessor(enrichers, processorLogger);
     }
