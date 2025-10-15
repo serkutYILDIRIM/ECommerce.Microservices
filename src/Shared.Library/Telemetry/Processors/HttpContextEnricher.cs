@@ -25,11 +25,11 @@ public class HttpContextEnricher : ISpanEnricher
     {
         var context = _httpContextAccessor.HttpContext;
         if (context == null) return;
-        
+
         try
         {
             var request = context.Request;
-            
+
             // Add standard HTTP attributes
             span.SetTag("http.method", request.Method);
             span.SetTag("http.scheme", request.Scheme);
@@ -37,28 +37,28 @@ public class HttpContextEnricher : ISpanEnricher
             span.SetTag("http.target", request.Path.Value);
             span.SetTag("http.flavor", GetHttpProtocol(request.Protocol));
             span.SetTag("http.user_agent", request.Headers["User-Agent"].ToString());
-            
+
             // Add custom headers (with filtering for sensitive data)
             if (request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
             {
                 span.SetTag("http.correlation_id", correlationId.ToString());
                 span.AddBaggage("correlation.id", correlationId.ToString());
             }
-            
+
             if (request.Headers.TryGetValue("X-Source-Service", out var sourceService))
             {
                 span.SetTag("http.source_service", sourceService.ToString());
             }
-            
+
             // Add client information
             span.SetTag("http.client_ip", GetClientIp(context));
-            
+
             // Add user information if authenticated
             if (context.User?.Identity?.IsAuthenticated == true)
             {
                 span.SetTag("enduser.id", context.User.Identity.Name);
                 span.SetTag("enduser.authenticated", true);
-                
+
                 // Add roles if available
                 var roles = context.User.Claims.Where(c => c.Type == "role").Select(c => c.Value);
                 if (roles.Any())
@@ -80,27 +80,27 @@ public class HttpContextEnricher : ISpanEnricher
     {
         var context = _httpContextAccessor.HttpContext;
         if (context == null) return;
-        
+
         try
         {
             var response = context.Response;
-            
+
             // Add response status
             span.SetTag("http.status_code", response.StatusCode);
-            
+
             // Determine status code category and set appropriate span status
             if (response.StatusCode >= 400)
             {
                 var errorType = response.StatusCode >= 500 ? "server" : "client";
                 span.SetTag("error", true);
                 span.SetTag("error.type", $"http.{errorType}_error");
-                
+
                 // Set span status based on HTTP status
-                span.SetStatus(response.StatusCode >= 500 ? 
-                    ActivityStatusCode.Error : 
+                span.SetStatus(response.StatusCode >= 500 ?
+                    ActivityStatusCode.Error :
                     ActivityStatusCode.Unset, $"HTTP {response.StatusCode}");
             }
-            
+
             // Add response size if available and content length is set
             if (response.ContentLength.HasValue)
             {
@@ -112,7 +112,7 @@ public class HttpContextEnricher : ISpanEnricher
             _logger.LogError(ex, "Error enriching span with HTTP response context");
         }
     }
-    
+
     /// <summary>
     /// Gets the HTTP protocol version
     /// </summary>
@@ -127,7 +127,7 @@ public class HttpContextEnricher : ISpanEnricher
             _ => protocol
         };
     }
-    
+
     /// <summary>
     /// Gets the client IP address with proper forwarding header support
     /// </summary>
@@ -140,7 +140,7 @@ public class HttpContextEnricher : ISpanEnricher
             if (ips.Length > 0)
                 return ips[0].Trim();
         }
-        
+
         // Fall back to connection remote IP
         return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
