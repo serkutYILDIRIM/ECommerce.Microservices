@@ -11,7 +11,7 @@ public interface ISpanEnricher
     /// Enriches a span when it starts 
     /// </summary>
     void EnrichSpanAtStart(Activity span);
-    
+
     /// <summary>
     /// Enriches a span when it ends
     /// </summary>
