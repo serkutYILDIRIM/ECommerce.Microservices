@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Shared.Library.Telemetry.Processors;
