@@ -16,30 +16,30 @@ public static class ActivityExtensions
     public static void RecordException(this Activity? activity, Exception exception, bool addErrorAttributes = true)
     {
         if (activity == null) return;
-        
+
         // Create tags dictionary with exception details
         var tags = new ActivityTagsCollection
         {
             { "exception.type", exception.GetType().FullName },
             { "exception.message", exception.Message }
         };
-        
+
         // Add stack trace if available
         if (!string.IsNullOrEmpty(exception.StackTrace))
         {
             tags.Add("exception.stacktrace", exception.StackTrace);
         }
-        
+
         // Add inner exception details if available
         if (exception.InnerException != null)
         {
             tags.Add("exception.inner.type", exception.InnerException.GetType().FullName);
             tags.Add("exception.inner.message", exception.InnerException.Message);
         }
-        
+
         // Record as an event on the current span
         activity.AddEvent(new ActivityEvent("exception", default, tags));
-        
+
         // Set activity status to Error if requested
         if (addErrorAttributes)
         {
@@ -49,7 +49,7 @@ public static class ActivityExtensions
             activity.SetTag("error.message", exception.Message);
         }
     }
-    
+
     /// <summary>
     /// Sets the current span status to error with details from the exception
     /// </summary>
@@ -59,12 +59,12 @@ public static class ActivityExtensions
     public static void SetErrorStatus(this Activity? activity, Exception exception, bool recordExceptionEvent = true)
     {
         if (activity == null) return;
-        
+
         activity.SetStatus(ActivityStatusCode.Error, exception.Message);
         activity.SetTag("error", true);
         activity.SetTag("error.type", exception.GetType().Name);
         activity.SetTag("error.message", exception.Message);
-        
+
         if (recordExceptionEvent)
         {
             activity.RecordException(exception, false);
@@ -80,7 +80,7 @@ public static class ActivityExtensions
     public static void SetError(this Activity? activity, string errorType, string message)
     {
         if (activity == null) return;
-        
+
         activity.SetStatus(ActivityStatusCode.Error, message);
         activity.SetTag("error", true);
         activity.SetTag("error.type", errorType);
