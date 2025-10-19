@@ -17,8 +17,7 @@ public static class ActivityExtensions
     {
         if (activity == null) return;
 
-        // Create tags dictionary with exception details
-        var tags = new ActivityTagsCollection
+        var tags = new ActivityTagsCollection        // Create tags dictionary with exception details
         {
             { "exception.type", exception.GetType().FullName },
             { "exception.message", exception.Message }
