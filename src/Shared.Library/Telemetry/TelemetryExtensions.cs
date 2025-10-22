@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,11 +5,6 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Shared.Library.Logging;
-using Shared.Library.Metrics;
-using Shared.Library.Telemetry.Baggage;
-using Shared.Library.Telemetry.Exporters;
-using Shared.Library.Telemetry.Processors;
 using Shared.Library.Telemetry.Sampling;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
