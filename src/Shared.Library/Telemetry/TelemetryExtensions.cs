@@ -26,6 +26,7 @@ namespace Shared.Library.Telemetry
         /// <param name="serviceName">The name of the service for telemetry attribution</param>
         /// <param name="serviceVersion">The version of the service</param>
         /// <returns>The service collection for chaining</returns>
+        /// 
         public static IServiceCollection AddOpenTelemetryServices(
             this IServiceCollection services,
             IConfiguration configuration,
