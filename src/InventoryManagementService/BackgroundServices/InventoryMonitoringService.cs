@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using InventoryManagementService.Data;
 using InventoryManagementService.Metrics;
 using InventoryManagementService.Models;
@@ -6,6 +5,7 @@ using InventoryManagementService.Telemetry;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Trace;
 using Shared.Library.Logging;
+using System.Diagnostics;
 
 namespace InventoryManagementService.BackgroundServices;
 
@@ -19,13 +19,13 @@ public class InventoryMonitoringService : BackgroundService
     private readonly ILogger<InventoryMonitoringService> _logger;
     private readonly BackgroundServiceMetrics _metrics;
     private readonly TimeSpan _checkInterval;
-    
+
     // Track internal state
     private int _executionCount = 0;
     private DateTime _lastExecutionTime = DateTime.MinValue;
 
     public InventoryMonitoringService(
-        IServiceProvider serviceProvider, 
+        IServiceProvider serviceProvider,
         ILogger<InventoryMonitoringService> logger,
         BackgroundServiceMetrics metrics,
         IConfiguration configuration)
@@ -33,18 +33,18 @@ public class InventoryMonitoringService : BackgroundService
         _serviceProvider = serviceProvider;
         _logger = logger;
         _metrics = metrics;
-        
+
         // Read configuration with default to 1 minute if not specified
         var intervalSeconds = configuration.GetValue<int>("BackgroundServices:InventoryMonitoring:IntervalSeconds", 60);
         _checkInterval = TimeSpan.FromSeconds(intervalSeconds);
-        
-        _logger.LogInformation("Inventory monitoring service initialized with check interval of {Interval} seconds", 
+
+        _logger.LogInformation("Inventory monitoring service initialized with check interval of {Interval} seconds",
             _checkInterval.TotalSeconds);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogWithCategory(LogLevel.Information, CategoryLogger.Categories.BackgroundService, 
+        _logger.LogWithCategory(LogLevel.Information, CategoryLogger.Categories.BackgroundService,
             "Inventory monitoring service is starting");
         _metrics.RecordServiceStart();
 
@@ -52,25 +52,25 @@ public class InventoryMonitoringService : BackgroundService
         {
             // Wait a bit before starting to allow the service to fully initialize
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-            
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogWithCategory(LogLevel.Debug, CategoryLogger.Categories.BackgroundService,
                     "Inventory monitoring cycle starting. Execution count: {Count}", _executionCount + 1);
-                
+
                 var stopwatch = Stopwatch.StartNew();
                 bool success = false;
                 Exception? error = null;
-                
+
                 using var activity = TelemetryConfig.ActivitySource.StartActivity("InventoryMonitoring.CheckInventoryLevels");
-                
+
                 try
                 {
                     await CheckInventoryLevelsAsync(stoppingToken);
                     success = true;
                     _executionCount++;
                     _lastExecutionTime = DateTime.UtcNow;
-                    
+
                     activity?.SetTag("inventory.check.success", true);
                     activity?.SetTag("inventory.check.execution_count", _executionCount);
                 }
@@ -86,14 +86,14 @@ public class InventoryMonitoringService : BackgroundService
                 {
                     stopwatch.Stop();
                     _metrics.RecordExecutionComplete(stopwatch.ElapsedMilliseconds, success, error);
-                    
+
                     activity?.SetTag("inventory.check.duration_ms", stopwatch.ElapsedMilliseconds);
-                    
+
                     _logger.LogWithCategory(LogLevel.Debug, CategoryLogger.Categories.BackgroundService,
-                        "Inventory monitoring cycle completed in {ElapsedMs}ms. Success: {Success}", 
+                        "Inventory monitoring cycle completed in {ElapsedMs}ms. Success: {Success}",
                         stopwatch.ElapsedMilliseconds, success);
                 }
-                
+
                 // Wait for the next check interval
                 await Task.Delay(_checkInterval, stoppingToken);
             }
@@ -130,19 +130,19 @@ public class InventoryMonitoringService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        
+
         // Record the start of a check operation
         _metrics.RecordOperationStart("inventory_check");
-        
+
         try
         {
             // Find items that are at or below reorder threshold
             var lowStockItems = await dbContext.InventoryItems
                 .Where(i => i.QuantityAvailable - i.QuantityReserved <= i.ReorderThreshold)
                 .ToListAsync(stoppingToken);
-            
+
             _metrics.RecordInventoryCheckResults(lowStockItems.Count);
-            
+
             // Process low stock items
             foreach (var item in lowStockItems)
             {
@@ -157,7 +157,7 @@ public class InventoryMonitoringService : BackgroundService
                     _metrics.RecordItemProcessed(item.ProductId, false, ex);
                 }
             }
-            
+
             // Record that the entire operation completed successfully
             _metrics.RecordOperationComplete("inventory_check", true);
         }
@@ -169,8 +169,8 @@ public class InventoryMonitoringService : BackgroundService
     }
 
     private async Task ProcessLowStockItemAsync(
-        InventoryItem item, 
-        InventoryDbContext dbContext, 
+        InventoryItem item,
+        InventoryDbContext dbContext,
         CancellationToken stoppingToken)
     {
         using var activity = TelemetryConfig.ActivitySource.StartActivity("InventoryMonitoring.ProcessLowStockItem");
@@ -179,50 +179,50 @@ public class InventoryMonitoringService : BackgroundService
         activity?.SetTag("inventory.quantity_available", item.QuantityAvailable);
         activity?.SetTag("inventory.quantity_reserved", item.QuantityReserved);
         activity?.SetTag("inventory.reorder_threshold", item.ReorderThreshold);
-        
+
         var availableForSale = item.QuantityAvailable - item.QuantityReserved;
-        
+
         // Calculate shortage amount
         var shortage = item.ReorderThreshold - availableForSale;
-        if (shortage <= 0) 
+        if (shortage <= 0)
         {
             // No actual shortage, this could happen if inventory was updated since our query
             activity?.SetTag("inventory.has_shortage", false);
             return;
         }
-        
+
         activity?.SetTag("inventory.has_shortage", true);
         activity?.SetTag("inventory.shortage_amount", shortage);
         activity?.SetTag("inventory.available_for_sale", availableForSale);
-        
+
         // Calculate reorder quantity - typically we'd reorder enough to get back to a comfortable level
         // For this example, we'll reorder 2x the threshold
         var reorderQuantity = item.ReorderThreshold * 2;
         activity?.SetTag("inventory.reorder_quantity", reorderQuantity);
-        
+
         // Record a reorder recommendation
         _metrics.RecordReorderRecommendation(
-            item.ProductId, 
-            item.ProductName, 
-            availableForSale, 
-            item.ReorderThreshold, 
+            item.ProductId,
+            item.ProductName,
+            availableForSale,
+            item.ReorderThreshold,
             reorderQuantity);
-        
+
         // In a real system, we might create a purchase order or send a notification
         // For this example, we'll just log the recommendation
         _logger.LogWithCategory(LogLevel.Warning, CategoryLogger.Categories.BusinessLogic,
             "Low stock alert: Product {ProductName} (ID: {ProductId}) has only {AvailableQuantity} units available " +
             "(below threshold of {Threshold}). Recommended reorder quantity: {ReorderQuantity}",
-            item.ProductName, 
-            item.ProductId, 
-            availableForSale, 
-            item.ReorderThreshold, 
+            item.ProductName,
+            item.ProductId,
+            availableForSale,
+            item.ReorderThreshold,
             reorderQuantity);
-            
+
         // Update the inventory item's last checked timestamp
         item.LastUpdated = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(stoppingToken);
-        
+
         // Create a notable event for critical stock levels
         if (availableForSale <= 0)
         {
@@ -232,14 +232,14 @@ public class InventoryMonitoringService : BackgroundService
                 { "product.name", item.ProductName },
                 { "severity", "critical" }
             }));
-            
+
             _metrics.RecordStockoutEvent(item.ProductId, item.ProductName);
-            
+
             _logger.LogWithCategory(LogLevel.Critical, CategoryLogger.Categories.BusinessLogic,
                 "STOCKOUT: Product {ProductName} (ID: {ProductId}) has no available inventory!",
                 item.ProductName, item.ProductId);
         }
-        
+
         // Add a reorder event to the activity
         activity?.AddEvent(new ActivityEvent("ReorderRecommended", tags: new ActivityTagsCollection
         {
