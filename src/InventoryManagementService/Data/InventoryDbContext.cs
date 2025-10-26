@@ -25,7 +25,7 @@ public class InventoryDbContext : DbContext
             entity.Property(e => e.QuantityReserved).IsRequired();
             entity.Property(e => e.LastUpdated).IsRequired();
         });
-        
+
         // Configure the InventoryReservation entity
         modelBuilder.Entity<InventoryReservation>(entity =>
         {
