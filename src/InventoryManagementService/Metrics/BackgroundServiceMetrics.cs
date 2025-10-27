@@ -1,6 +1,6 @@
+using Shared.Library.Metrics;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Shared.Library.Metrics;
 
 namespace InventoryManagementService.Metrics;
 
@@ -11,22 +11,22 @@ public class BackgroundServiceMetrics
 {
     private readonly Meter _meter;
     private readonly ILogger<BackgroundServiceMetrics> _logger;
-    
+
     // Service lifecycle metrics
     private readonly Counter<long> _serviceStartCounter;
     private readonly Counter<long> _serviceStopCounter;
     private readonly Counter<long> _serviceFailureCounter;
-    
+
     // Execution metrics
     private readonly Counter<long> _executionCounter;
     private readonly Counter<long> _failedExecutionCounter;
     private readonly Histogram<double> _executionDurationHistogram;
-    
+
     // Operation metrics
     private readonly Counter<long> _operationCounter;
     private readonly Counter<long> _operationFailureCounter;
     private readonly Histogram<double> _operationDurationHistogram;
-    
+
     // Business metrics
     private readonly Counter<long> _inventoryChecksCounter;
     private readonly Counter<long> _lowStockItemsCounter;
@@ -34,11 +34,11 @@ public class BackgroundServiceMetrics
     private readonly Counter<long> _stockoutEventsCounter;
     private readonly Counter<long> _itemProcessedCounter;
     private readonly Counter<long> _itemProcessingFailureCounter;
-    
+
     // Internal state tracking
     private readonly Dictionary<string, Stopwatch> _operationStopwatches = new();
     private readonly object _lock = new();
-    
+
     // Observable metrics
     private bool _isRunning = false;
     private DateTime _startTime = DateTime.MinValue;
@@ -52,81 +52,81 @@ public class BackgroundServiceMetrics
     {
         _meter = meterProvider.AppMeter;
         _logger = logger;
-        
+
         // Service lifecycle metrics
         _serviceStartCounter = _meter.CreateCounter<long>(
             name: "background_service.starts",
             unit: "{starts}",
             description: "Number of times the background service has started");
-            
+
         _serviceStopCounter = _meter.CreateCounter<long>(
             name: "background_service.stops",
             unit: "{stops}",
             description: "Number of times the background service has stopped");
-            
+
         _serviceFailureCounter = _meter.CreateCounter<long>(
             name: "background_service.failures",
             unit: "{failures}",
             description: "Number of fatal errors in the background service");
-        
+
         // Execution metrics
         _executionCounter = _meter.CreateCounter<long>(
             name: "background_service.executions",
             unit: "{executions}",
             description: "Number of background task executions");
-            
+
         _failedExecutionCounter = _meter.CreateCounter<long>(
             name: "background_service.failed_executions",
             unit: "{failures}",
             description: "Number of failed background task executions");
-            
+
         _executionDurationHistogram = _meter.CreateHistogram<double>(
             name: "background_service.execution_duration",
             unit: "ms",
             description: "Duration of background task executions");
-        
+
         // Operation metrics
         _operationCounter = _meter.CreateCounter<long>(
             name: "background_service.operations",
             unit: "{operations}",
             description: "Number of operations performed by background service");
-            
+
         _operationFailureCounter = _meter.CreateCounter<long>(
             name: "background_service.operation_failures",
             unit: "{failures}",
             description: "Number of failed operations in background service");
-            
+
         _operationDurationHistogram = _meter.CreateHistogram<double>(
             name: "background_service.operation_duration",
             unit: "ms",
             description: "Duration of operations performed by background service");
-        
+
         // Business metrics
         _inventoryChecksCounter = _meter.CreateCounter<long>(
             name: "background_service.inventory_checks",
             unit: "{checks}",
             description: "Number of inventory checks performed");
-            
+
         _lowStockItemsCounter = _meter.CreateCounter<long>(
             name: "background_service.low_stock_items",
             unit: "{items}",
             description: "Number of low stock items detected");
-            
+
         _reorderRecommendationsCounter = _meter.CreateCounter<long>(
             name: "background_service.reorder_recommendations",
             unit: "{recommendations}",
             description: "Number of reorder recommendations generated");
-            
+
         _stockoutEventsCounter = _meter.CreateCounter<long>(
             name: "background_service.stockout_events",
             unit: "{events}",
             description: "Number of stockout events detected");
-            
+
         _itemProcessedCounter = _meter.CreateCounter<long>(
             name: "background_service.items_processed",
             unit: "{items}",
             description: "Number of items processed by the background service");
-            
+
         _itemProcessingFailureCounter = _meter.CreateCounter<long>(
             name: "background_service.item_processing_failures",
             unit: "{failures}",
@@ -188,36 +188,36 @@ public class BackgroundServiceMetrics
         _consecutiveFailures = 0;
         _logger.LogDebug("Background service started");
     }
-    
+
     public void RecordServiceStop()
     {
         _serviceStopCounter.Add(1);
         _isRunning = false;
         _logger.LogDebug("Background service stopped");
     }
-    
+
     public void RecordServiceFailure(Exception ex)
     {
-        _serviceFailureCounter.Add(1, 
+        _serviceFailureCounter.Add(1,
             new KeyValuePair<string, object?>("error.type", ex.GetType().Name));
         _isRunning = false;
         _logger.LogError(ex, "Background service failed");
     }
 
     #endregion
-    
+
     #region Execution Tracking
-    
+
     public void RecordExecutionComplete(double durationMs, bool success, Exception? error = null)
     {
         _lastExecutionAttempt = DateTime.UtcNow;
         _totalExecutions++;
-        
+
         var tags = new List<KeyValuePair<string, object?>>
         {
             new KeyValuePair<string, object?>("execution.success", success)
         };
-        
+
         if (success)
         {
             _executionCounter.Add(1, tags.ToArray());
@@ -228,41 +228,41 @@ public class BackgroundServiceMetrics
         {
             _totalFailedExecutions++;
             _consecutiveFailures++;
-            
+
             if (error != null)
             {
                 tags.Add(new KeyValuePair<string, object?>("error.type", error.GetType().Name));
             }
-            
+
             _failedExecutionCounter.Add(1, tags.ToArray());
         }
-        
+
         _executionDurationHistogram.Record(durationMs, tags.ToArray());
-        
-        _logger.LogDebug("Recorded execution completion. Success: {Success}, Duration: {Duration}ms", 
+
+        _logger.LogDebug("Recorded execution completion. Success: {Success}, Duration: {Duration}ms",
             success, durationMs);
     }
-    
+
     #endregion
-    
+
     #region Operation Tracking
-    
+
     public void RecordOperationStart(string operationName)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         lock (_lock)
         {
             _operationStopwatches[operationName] = stopwatch;
         }
-        
+
         _logger.LogTrace("Operation started: {OperationName}", operationName);
     }
-    
+
     public void RecordOperationComplete(string operationName, bool success, Exception? error = null)
     {
         Stopwatch? stopwatch;
-        
+
         lock (_lock)
         {
             if (!_operationStopwatches.TryGetValue(operationName, out stopwatch))
@@ -270,18 +270,18 @@ public class BackgroundServiceMetrics
                 _logger.LogWarning("Attempted to complete operation {OperationName} that was not started", operationName);
                 return;
             }
-            
+
             _operationStopwatches.Remove(operationName);
         }
-        
+
         stopwatch.Stop();
-        
+
         var tags = new List<KeyValuePair<string, object?>>
         {
             new KeyValuePair<string, object?>("operation.name", operationName),
             new KeyValuePair<string, object?>("operation.success", success)
         };
-        
+
         if (success)
         {
             _operationCounter.Add(1, tags.ToArray());
@@ -290,58 +290,58 @@ public class BackgroundServiceMetrics
         {
             if (error != null)
                 tags.Add(new KeyValuePair<string, object?>("error.type", error.GetType().Name));
-            
-            
+
+
             _operationFailureCounter.Add(1, tags.ToArray());
         }
-        
+
         _operationDurationHistogram.Record(stopwatch.ElapsedMilliseconds, tags.ToArray());
-        
-        _logger.LogTrace("Operation completed: {OperationName}, Success: {Success}, Duration: {Duration}ms", 
+
+        _logger.LogTrace("Operation completed: {OperationName}, Success: {Success}, Duration: {Duration}ms",
             operationName, success, stopwatch.ElapsedMilliseconds);
     }
-    
+
     #endregion
-    
+
     #region Business Metrics
-    
+
     public void RecordInventoryCheckResults(int lowStockItemCount)
     {
         _inventoryChecksCounter.Add(1);
         _lowStockItemsCounter.Add(lowStockItemCount);
-        
+
         _logger.LogInformation("Inventory check completed. Found {Count} items with low stock", lowStockItemCount);
     }
-    
+
     public void RecordReorderRecommendation(
-        int productId, 
-        string productName, 
-        int currentStock, 
-        int threshold, 
+        int productId,
+        string productName,
+        int currentStock,
+        int threshold,
         int recommendedQuantity)
     {
-        _reorderRecommendationsCounter.Add(1, 
+        _reorderRecommendationsCounter.Add(1,
             new KeyValuePair<string, object?>("product.id", productId),
             new KeyValuePair<string, object?>("product.name", productName),
             new KeyValuePair<string, object?>("inventory.current_stock", currentStock),
             new KeyValuePair<string, object?>("inventory.threshold", threshold),
             new KeyValuePair<string, object?>("inventory.recommended_quantity", recommendedQuantity));
-            
+
         _logger.LogInformation(
             "Reorder recommendation generated for {ProductName} (ID: {ProductId}). " +
             "Current: {CurrentStock}, Threshold: {Threshold}, Recommended: {RecommendedQuantity}",
             productName, productId, currentStock, threshold, recommendedQuantity);
     }
-    
+
     public void RecordStockoutEvent(int productId, string productName)
     {
         _stockoutEventsCounter.Add(1,
             new KeyValuePair<string, object?>("product.id", productId),
             new KeyValuePair<string, object?>("product.name", productName));
-            
+
         _logger.LogWarning("Stockout detected for {ProductName} (ID: {ProductId})", productName, productId);
     }
-    
+
     public void RecordItemProcessed(int productId, bool success, Exception? error = null)
     {
         var tags = new List<KeyValuePair<string, object?>>
@@ -349,7 +349,7 @@ public class BackgroundServiceMetrics
             new KeyValuePair<string, object?>("product.id", productId),
             new KeyValuePair<string, object?>("processing.success", success)
         };
-        
+
         if (success)
         {
             _itemProcessedCounter.Add(1, tags.ToArray());
@@ -358,7 +358,7 @@ public class BackgroundServiceMetrics
         {
             if (error != null)
                 tags.Add(new KeyValuePair<string, object?>("error.type", error.GetType().Name));
-            
+
             _itemProcessingFailureCounter.Add(1, tags.ToArray());
         }
     }
@@ -397,7 +397,7 @@ public class BackgroundServiceMetrics
 
             // Deduct points for staleness (no recent successful execution)
             var timeSinceLastSuccess = DateTime.UtcNow - _lastSuccessfulExecution;
-            
+
             if (timeSinceLastSuccess.TotalMinutes > 5)
                 score -= Math.Min(20, timeSinceLastSuccess.TotalMinutes); // Deduct up to 20 points for staleness
 
