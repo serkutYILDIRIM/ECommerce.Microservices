@@ -1,7 +1,7 @@
-using System.Diagnostics.Metrics;
-using InventoryManagementService.Data;
+﻿using InventoryManagementService.Data;
 using InventoryManagementService.Models;
-using Shared.Library.Metrics;
+using Shared.Library.Metrics;ş
+using System.Diagnostics.Metrics;
 
 namespace InventoryManagementService.Metrics;
 
@@ -63,12 +63,12 @@ public class InventoryMetrics
             name: "business.inventory.value",
             unit: "{currency}",
             description: "Total monetary value of inventory");
-            
+
         _stockTurnoverRateHistogram = _meter.CreateHistogram<double>(
             name: "business.inventory.turnover_rate",
             unit: "{ratio}",
             description: "Rate of inventory turnover (sales to average inventory)");
-            
+
         _inventoryAdjustmentsCounter = _meter.CreateCounter<long>(
             name: "business.inventory.adjustments",
             unit: "{units}",
