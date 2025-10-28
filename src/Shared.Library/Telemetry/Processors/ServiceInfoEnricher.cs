@@ -7,6 +7,7 @@ namespace Shared.Library.Telemetry.Processors;
 /// <summary>
 /// Enriches spans with service information
 /// </summary>
+/// 
 public class ServiceInfoEnricher : ISpanEnricher
 {
     private readonly string _serviceName;
