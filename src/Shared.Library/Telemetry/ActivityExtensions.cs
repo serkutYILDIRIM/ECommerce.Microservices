@@ -5,6 +5,7 @@ namespace Shared.Library.Telemetry;
 /// <summary>
 /// Extension methods for working with Activity in OpenTelemetry
 /// </summary>
+/// 
 public static class ActivityExtensions
 {
     /// <summary>
