@@ -20,8 +20,7 @@ public class InventoryMonitoringService : BackgroundService
     private readonly BackgroundServiceMetrics _metrics;
     private readonly TimeSpan _checkInterval;
 
-    // Track internal state
-    private int _executionCount = 0;
+    private int _executionCount = 0;    // Track internal state
     private DateTime _lastExecutionTime = DateTime.MinValue;
 
     public InventoryMonitoringService(
