@@ -52,7 +52,8 @@ public class InventoryController : ControllerBase
             if (inventoryItem == null)
                 return NotFound();
 
-            var isPremiumCustomer = context.IsPremiumCustomer;            // Extract context for decision making
+            // Extract context for decision making
+            var isPremiumCustomer = context.IsPremiumCustomer;           
 
             StockResponse response;
 
