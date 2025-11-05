@@ -57,8 +57,7 @@ public class InventoryController : ControllerBase
 
             StockResponse response;
 
-            // Apply different business rules based on customer tier
-            if (isPremiumCustomer)
+            if (isPremiumCustomer)            // Apply different business rules based on customer tier
             {
                 // Premium customers get special handling
                 response = await _businessRules.GetStockForPremiumCustomer(inventoryItem, context);
