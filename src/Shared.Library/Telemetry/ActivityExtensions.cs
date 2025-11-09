@@ -14,7 +14,6 @@ public static class ActivityExtensions
     /// <param name="activity">The activity to record the exception on</param>
     /// <param name="exception">The exception to record</param>
     /// <param name="addErrorAttributes">Whether to also add error tags to the span</param>
-    /// 
     public static void RecordException(this Activity? activity, Exception exception, bool addErrorAttributes = true)
     {
         if (activity == null) return;
