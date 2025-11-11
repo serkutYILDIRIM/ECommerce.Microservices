@@ -13,6 +13,7 @@ namespace InventoryManagementService.BackgroundServices;
 /// Background service that periodically monitors inventory levels
 /// and triggers alerts for low stock items
 /// </summary>
+/// 
 public class InventoryMonitoringService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
