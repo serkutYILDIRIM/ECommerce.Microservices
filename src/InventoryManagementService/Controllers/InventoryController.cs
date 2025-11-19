@@ -97,8 +97,8 @@ public class InventoryController : ControllerBase
     [HttpPost("reserve")]
     public async Task<ActionResult<InventoryReservationResult>> ReserveInventory(InventoryReservationRequest request)
     {
-        // Set transaction context first to ensure correlation
-        _baggageManager.SetTransactionContext(correlationId: request.CorrelationId);
+
+        _baggageManager.SetTransactionContext(correlationId: request.CorrelationId);        // Set transaction context first to ensure correlation
 
         // Set order context if provided
         if (request.OrderId > 0)
