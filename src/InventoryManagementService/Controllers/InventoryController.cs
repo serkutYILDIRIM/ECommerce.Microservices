@@ -39,7 +39,8 @@ public class InventoryController : ControllerBase
     public async Task<ActionResult<StockResponse>> GetStock(int productId)
     {
 
-        var context = _contextEnricher.GetBusinessContext();        // Get business context from baggage
+        // Get business context from baggage
+        var context = _contextEnricher.GetBusinessContext();
 
         // Start a span to track this operation
         using var activity = new ActivitySource("InventoryManagement").StartActivity("GetStock");
