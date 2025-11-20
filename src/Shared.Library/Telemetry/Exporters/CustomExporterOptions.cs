@@ -18,6 +18,7 @@ public class CustomExporterOptions
     /// <summary>
     /// Operation names to include even if they are internal spans
     /// </summary>
+    /// 
     public HashSet<string> IncludeOperationNames { get; set; } = new();
 
     /// <summary>
