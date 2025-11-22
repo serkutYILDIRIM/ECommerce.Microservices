@@ -107,8 +107,8 @@ public class InventoryController : ControllerBase
                 priority: request.IsPriority ? "High" : "Standard");
         }
 
-        // Get complete business context
-        var context = _contextEnricher.GetBusinessContext();
+        
+        var context = _contextEnricher.GetBusinessContext(); // Get complete business context
 
         // Start a span to track this operation
         using var activity = new ActivitySource("InventoryManagement").StartActivity("ReserveInventory");
