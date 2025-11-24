@@ -120,8 +120,8 @@ public class InventoryController : ControllerBase
 
         try
         {
-            
-            if (ShouldProcessImmediately(context, request))// Decide whether to process immediately or queue based on baggage context
+            // Decide whether to process immediately or queue based on baggage context
+            if (ShouldProcessImmediately(context, request))
             {
                 activity?.SetTag("processing.path", "immediate");
                 return await ProcessReservationImmediately(request, context);
